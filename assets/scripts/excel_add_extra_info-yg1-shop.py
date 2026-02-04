@@ -297,6 +297,26 @@ constr_to_lvl = {
         "l2": "Резцы сборные",
         "l3": "Державки для насадок-пластин",
     },
+    "ctd_dli_mb2" : {
+        "dop": "Фреза сферическая",
+        "l1": "Инструменты для зуботехнических лабораторий",
+        "l2": "Сферические фрезы",
+    },
+    "ctd_dli_me2": {
+        "dop": "Фреза c плоским торцом",
+        "l1": "Инструменты для зуботехнических лабораторий",
+        "l2": "Фрезы с плоским торцом",
+    },
+    "ctd_dli_mr2": {
+        "dop": "Фреза с радиусом",
+        "l1": "Инструменты для зуботехнических лабораторий",
+        "l2": "Фрезы с радиусом",
+    },
+    "ctd_dli_mt3": {
+        "dop": "Резьбофреза",
+        "l1": "Инструменты для зуботехнических лабораторий",
+        "l2": "Резьбофрезы",
+    },
 }
 
 
@@ -383,7 +403,7 @@ def add_extra_info(args: Args):
 
             log_info_to_cpp(filename.name)
 
-            df = pd.read_excel(filename, index_col=None, engine="openpyxl")
+            df = pd.read_excel(filename, index_col=None, engine="openpyxl", dtype={'codem': str, 'model': str, 'fulldescription': str, 'manuf': str})
             for key, value in FIELDS_MAP.items():
                 if key in df.columns:
                     df.rename(columns={key: value}, inplace=True)
