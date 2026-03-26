@@ -5,6 +5,7 @@ assets/projects/
 assets/settings/
 test_projects/
 build/
+build-release/
 **/.mypy_cache
 **/__pycache__
 

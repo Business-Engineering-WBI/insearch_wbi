@@ -53,7 +53,7 @@ if (${DEBUG})
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 endif()
 
-add_compile_definitions(OPENGL RES_FOLDER="${CMAKE_SOURCE_DIR}/")
+add_compile_definitions(OPENGL RES_FOLDER="")
 
 # add_custom_target(check chmod 777 ${CMAKE_SOURCE_DIR}/lint.sh && ${CMAKE_SOURCE_DIR}/lint.sh)
 
