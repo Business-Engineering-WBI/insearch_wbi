@@ -2,6 +2,7 @@
 
 #include "Engine/Textures/Texture2D.h"
 #include "ImGui/Configs/SharedConnectionConfigSetup.hpp"
+#include "ImGui/Configs/Yg1ShopConstructionLevelConfigSetup.hpp"
 #include "ImGui/Project/CreateNewProject.h"
 #include "ImGui/Project/SetupProject.h"
 #include "Project/Project.h"
@@ -35,6 +36,7 @@ namespace LM
         SetupProject m_SetupProjectWindow;
         CreateNewProject m_CreateNewProject;
         SharedConnectionConfigSetup m_SharedConnectionConfigSetup;
+        Yg1ShopConstructionLevelConfigSetup m_Yg1ShopConstructionLevelConfigSetup;
 
         Ref<Texture2D> m_AppLogoLight;
 

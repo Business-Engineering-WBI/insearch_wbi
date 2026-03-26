@@ -2,13 +2,14 @@ import argparse
 import json
 import sys
 import traceback
-from typing import Callable, TypeVar
+from typing import Callable, TypeVar, TypedDict
 
 import cv2
 import numpy as np
 from pydantic import BaseModel as ArgsBase
 
 DEFAULT_CONNECTION_CONFIG_PATH = "./assets/configs/shared_connection_config.json"
+DEFAULT_YG1_SHOP_CONSTRUCTION_LEVEL_CONFIG_PATH = "./assets/configs/yg1-shop_construction_level.json"
 
 utf8stdout = open(1, 'w', encoding='utf-8', closefd=False)
 
@@ -171,3 +172,26 @@ def import_connection_config(config_path: str) -> ConnectionConfigItem:
                 return config
 
     raise RuntimeError("Не найдена конфигурация подключения с именем " + configs.current_config_name)
+
+
+class Yg1ShopConstructionLevelConfigItem(ArgsBase):
+    dop: str
+    l1: str
+    l2: str | None
+    l3: str | None
+
+
+class Yg1ShopConstructionLevelConfigItemDict(TypedDict):
+    dop: str
+    l1: str
+    l2: str | None
+    l3: str | None
+
+
+def import_yg1_shop_construction_level_config(config_path: str) -> dict[str, Yg1ShopConstructionLevelConfigItemDict]:
+    with open(config_path, "r", encoding="utf-8") as f:
+        json_data = json.load(f)
+        result: dict[str, Yg1ShopConstructionLevelConfigItemDict] = {}
+        for key, value in json_data.items():
+            result[key] = Yg1ShopConstructionLevelConfigItem(**value).model_dump()
+        return result

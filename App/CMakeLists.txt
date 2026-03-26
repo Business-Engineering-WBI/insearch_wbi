@@ -41,6 +41,7 @@ set(SOURCES
     src/ImGui/Img/ScalableImg.cpp                               src/ImGui/Img/ScalableImg.h
 
     src/ImGui/Configs/SharedConnectionConfigSetup.cpp           src/ImGui/Configs/SharedConnectionConfigSetup.hpp
+    src/ImGui/Configs/Yg1ShopConstructionLevelConfigSetup.cpp   src/ImGui/Configs/Yg1ShopConstructionLevelConfigSetup.hpp
     
     src/Serializer/Serializer.cpp                               src/Serializer/Serializer.h
 

@@ -5,6 +5,7 @@
 #include "Engine/Utils/Utf8Extras.hpp"
 #include "Engine/Utils/utf8.h"
 #include "ImGui/Configs/SharedConnectionConfigSetup.hpp"
+#include "ImGui/Configs/Yg1ShopConstructionLevelConfigSetup.hpp"
 #include "ImGui/Overlays/Overlay.h"
 #include "ImGui/Overlays/ScriptPopup.h"
 #include "Managers/TextureManager.h"
@@ -2430,6 +2431,8 @@ namespace LM
                 if (ImGui::Button("Собрать файлы в один и добавить доп. поля для yg1-shop"))
                 {
                     Save();
+                    Yg1ShopConstructionLevelConfigSetup::Get().SaveConfigIfHasChanges();
+
                     PythonCommand pythonCommand("./assets/scripts/excel_add_extra_info-yg1-shop.py");
                     pythonCommand.AddPathArg(
                         m_Project->GetVariantExcelTablesHelpers().GetXlsxAddExtraInfoWithProcessedImagesPath(),

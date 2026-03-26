@@ -6,6 +6,8 @@ endif()
 
 project(InSearchCreator VERSION 1.0)
 
+set(CMAKE_POLICY_VERSION_MINIMUM "3.5")
+
 option(STATIC "Set to ON to build xlnt as a static library instead of a shared library" ON)
 
 set(CMAKE_CXX_STANDARD 20)
@@ -53,7 +55,10 @@ if (${DEBUG})
     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS}")
 endif()
 
-add_compile_definitions(OPENGL RES_FOLDER="")
+    add_compile_definitions(OPENGL)
+if(NOT CMAKE_BUILD_TYPE STREQUAL "Release")
+    add_compile_definitions(RES_FOLDER="${CMAKE_SOURCE_DIR}")
+endif()
 
 # add_custom_target(check chmod 777 ${CMAKE_SOURCE_DIR}/lint.sh && ${CMAKE_SOURCE_DIR}/lint.sh)
 
