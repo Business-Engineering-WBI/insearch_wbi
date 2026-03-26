@@ -2437,7 +2437,7 @@ namespace LM
                     pythonCommand.AddPathArg(
                         m_Project->GetVariantExcelTablesHelpers().GetXlsxForServerImportPath(kAddExtraInfoYg1Parser),
                         "--save_path");
-                    pythonCommand.AddPathArg("http://194.113.153.157/nameduploads/", "--img_prefix");
+                    pythonCommand.AddPathArg("https://yg1-shop.ru/nameduploads/", "--img_prefix");
 
                     ScriptPopup::Get()->AddToQueue(pythonCommand,
                                                    { "Заполнение данных для yg1-shop",

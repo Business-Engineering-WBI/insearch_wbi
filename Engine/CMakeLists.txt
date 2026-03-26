@@ -138,7 +138,7 @@ FetchContent_MakeAvailable(stb)
 FetchContent_Declare(
     nativefiledialog
     GIT_REPOSITORY https://github.com/btzy/nativefiledialog-extended.git
-    GIT_TAG v1.2.1
+    GIT_TAG v1.3.0
 )
 FetchContent_MakeAvailable(nativefiledialog)
 

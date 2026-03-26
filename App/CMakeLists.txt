@@ -60,7 +60,7 @@ include(FetchContent)
 FetchContent_Declare(
     xlnt
     GIT_REPOSITORY https://github.com/xlnt-community/xlnt.git
-    GIT_TAG v1.6.1
+    GIT_TAG d657345076cdd8edaf449b17a25f0db3899b3cab
 )
 FetchContent_MakeAvailable(xlnt)
 
