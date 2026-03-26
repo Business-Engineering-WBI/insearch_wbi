@@ -254,6 +254,7 @@ def process_files(args: Args):
                 log_trace_to_cpp("Вставка/обновление ссылок на изображения")
                 insert_into_pic_tools(sqlalchemy_engine, row, tool_id)
 
+                item_id = None
                 if displayfields is None or len(displayfields) == 0 or constr is None:
                     log_warning_to_cpp(
                         "Пропуск вставки в таблицу конструкции и в таблицу gen_items из-за отсутствия конструкции")
