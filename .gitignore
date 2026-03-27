@@ -13,4 +13,4 @@ build-release/
 **/.venv
 
 assets/tessdata/
-assets/configs/
+assets/configs/shared_connection_config.json

@@ -177,8 +177,8 @@ def import_connection_config(config_path: str) -> ConnectionConfigItem:
 class Yg1ShopConstructionLevelConfigItem(ArgsBase):
     dop: str
     l1: str
-    l2: str | None
-    l3: str | None
+    l2: str | None = None
+    l3: str | None = None
 
 
 class Yg1ShopConstructionLevelConfigItemDict(TypedDict):
@@ -193,5 +193,5 @@ def import_yg1_shop_construction_level_config(config_path: str) -> dict[str, Yg1
         json_data = json.load(f)
         result: dict[str, Yg1ShopConstructionLevelConfigItemDict] = {}
         for key, value in json_data.items():
-            result[key] = Yg1ShopConstructionLevelConfigItem(**value).model_dump()
+            result[key] = Yg1ShopConstructionLevelConfigItem(**value).model_dump()                                      # type: ignore
         return result

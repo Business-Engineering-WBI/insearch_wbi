@@ -8,6 +8,7 @@
 
 #include <fstream>
 #include <string>
+#include <unordered_map>
 
 namespace LM
 {
@@ -36,37 +37,64 @@ namespace LM
 
         if (ImGui::Begin("Настройка уровней конструкций для магазина"))
         {
+            // Precompute counts to detect duplicates
+            std::unordered_map<std::string, int> counts;
+            for (const auto& c : m_Configs)
+            {
+                counts[c.Construction]++;
+            }
+
             for (size_t i = 0; i < m_Configs.size(); ++i)
             {
                 Yg1ShopConstructionLevel& config = m_Configs[i];
 
+                bool isDuplicate = (!config.Construction.empty() && counts[config.Construction] > 1) ||
+                                   config.Construction.rfind("ERROR", 0) == 0;
+
                 ImGui::PushID(static_cast<int>(i));
 
-                if (ImGui::InputText("Конструкция", &config.Construction))
+                if (isDuplicate)
+                {
+                    ImGui::PushStyleColor(ImGuiCol_FrameBg, ImVec4(1.0f, 0.6f, 0.6f, 1.0f));
+                    ImGui::PushStyleColor(ImGuiCol_FrameBgHovered, ImVec4(1.0f, 0.5f, 0.5f, 1.0f));
+                }
+
+                if (ImGui::InputText("Ключ конструкция (ctd_...)", &config.Construction))
                 {
                     m_HasChanges = true;
                     m_LastChangeTime = std::chrono::steady_clock::now();
                 }
 
-                if (ImGui::InputText("Название", &config.Name))
+                if (isDuplicate)
+                {
+                    ImGui::SameLine();
+                    ImGui::TextColored(ImVec4(1.0f, 0.0f, 0.0f, 1.0f), "Дубликат ключа");
+                }
+
+                if (ImGui::InputText("Наименование перед обозначением (Пример: Пластина токарная)", &config.Name))
                 {
                     m_HasChanges = true;
                     m_LastChangeTime = std::chrono::steady_clock::now();
                 }
-                if (ImGui::InputText("Уровень 1", &config.Level1))
+                if (ImGui::InputText("Раздел каталога уровень 1", &config.Level1))
                 {
                     m_HasChanges = true;
                     m_LastChangeTime = std::chrono::steady_clock::now();
                 }
-                if (ImGui::InputText("Уровень 2", &config.Level2))
+                if (ImGui::InputText("Раздел каталога уровень 2", &config.Level2))
                 {
                     m_HasChanges = true;
                     m_LastChangeTime = std::chrono::steady_clock::now();
                 }
-                if (ImGui::InputText("Уровень 3", &config.Level3))
+                if (ImGui::InputText("Раздел каталога уровень 3", &config.Level3))
                 {
                     m_HasChanges = true;
                     m_LastChangeTime = std::chrono::steady_clock::now();
+                }
+
+                if (isDuplicate)
+                {
+                    ImGui::PopStyleColor(2);
                 }
 
                 ImGui::PopID();
@@ -97,8 +125,16 @@ namespace LM
         }
         nlohmann::json json;
 
+        // We want to preserve duplicate constructions on save. JSON objects cannot hold
+        // duplicate keys, so for duplicates we save them with a prefix: ERROR<copyIndex>_<originalKey>
+        std::unordered_map<std::string, int> seen;
         for (const auto& config : m_Configs)
         {
+            if (config.Construction.empty())
+            {
+                continue;    // skip empty keys
+            }
+
             nlohmann::json item;
             item["dop"] = config.Name;
             item["l1"] = config.Level1;
@@ -110,10 +146,26 @@ namespace LM
             {
                 item["l3"] = config.Level3;
             }
-            json[config.Construction] = item;
+
+            // increment occurrence count
+            int idx = ++seen[config.Construction];
+            if (idx == 1)
+            {
+                // first occurrence, use original key
+                json[config.Construction] = item;
+            }
+            else
+            {
+                // duplicate occurrence: save with ERROR<copyNumber>_ prefix
+                int copyNumber = idx - 1;    // first duplicate -> ERROR1_
+                std::string errorKey = "ERROR" + std::to_string(copyNumber) + "_" + config.Construction;
+                json[errorKey] = item;
+            }
         }
 
         fout << std::setw(4) << json;
+
+        LOG_CORE_INFO("Yg1ShopConstructionLevel configuration saved successfully");
     }
 
     void Yg1ShopConstructionLevelConfigSetup::SaveConfigIfHasChanges()
