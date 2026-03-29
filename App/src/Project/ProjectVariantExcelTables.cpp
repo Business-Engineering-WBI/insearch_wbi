@@ -113,9 +113,19 @@ namespace LM
         }
     }
 
+    void ProjectVariantExcelTables::SetIsUploadImagesForYg1ShopNeedRebuild(bool _NeedRebuild)
+    {
+        IsUploadImagesForYg1ShopNeedRebuild = _NeedRebuild;
+    }
+
     void ProjectVariantExcelTables::SetIsImportDataToWbiToolsServerNeedRebuild(bool _NeedRebuild)
     {
         IsImportDataToWbiToolsServerNeedRebuild = _NeedRebuild;
+    }
+
+    void ProjectVariantExcelTables::SetIsGenerateYg1ShopCombinedXlsxNeedRebuild(bool _NeedRebuild)
+    {
+        IsGenerateYg1ShopCombinedXlsxNeedRebuild = _NeedRebuild;
     }
 
 }    // namespace LM

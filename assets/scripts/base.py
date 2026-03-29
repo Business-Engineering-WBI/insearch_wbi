@@ -157,6 +157,12 @@ class ConnectionConfigItem(ArgsBase):
 
     server_imgs_path: str
 
+    shop_ftp_host: str
+    shop_ftp_port: int = 21
+    shop_ftp_user: str
+    shop_ftp_password: str
+    shop_ftp_imgs_path: str
+
 
 class ConnectionConfig(ArgsBase):
     configs: list[ConnectionConfigItem]

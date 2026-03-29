@@ -23,6 +23,12 @@ namespace LM
         std::string DbPassword;
 
         std::string ServerImgsPath;
+
+        std::string ShopFtpHost;
+        int ShopFtpPort = 21;
+        std::string ShopFtpUser;
+        std::string ShopFtpPassword;
+        std::string ShopFtpImgsPath;
     };
 
     class SharedConnectionConfigSetup

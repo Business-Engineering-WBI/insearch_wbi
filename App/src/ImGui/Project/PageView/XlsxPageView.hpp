@@ -163,6 +163,10 @@ namespace LM
 
         void ImportDataToWbiToolsServer(bool _IsNeedRunWithoutCheckIsDone = true);
 
+        void UploadImagesForYg1Shop(bool _IsNeedRunWithoutCheckIsDone = true);
+
+        void GenerateYg1ShopCombinedXlsx(bool _IsNeedRunWithoutCheckIsDone = true);
+
     protected:
         bool m_IsMainWindowFocused = false;
         bool m_IsAnyCellActive = false;

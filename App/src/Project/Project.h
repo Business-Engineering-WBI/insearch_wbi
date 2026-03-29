@@ -51,6 +51,7 @@ namespace LM
 
         // =========== Paths ==================================================
         inline const std::string& GetFolder() const { return m_Folder; }
+        inline const std::string GetName() const { return std::filesystem::path(m_Folder).filename().string(); }
         inline void SetFolder(std::string_view _Folder) { m_Folder = _Folder; }
         const std::string GetPathInFolder(std::string_view _Path) const;
         std::string GetPathInFolderAndCreateDirs(std::string_view _Path) const;

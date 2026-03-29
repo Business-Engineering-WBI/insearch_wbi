@@ -132,6 +132,35 @@ namespace LM
                         m_HasChanges = true;
                         m_LastChangeTime = std::chrono::steady_clock::now();
                     }
+
+                    ImGui::Separator();
+                    ImGui::Text("Настройки FTP магазина");
+
+                    if (ImGui::InputText("FTP Хост", &config.ShopFtpHost))
+                    {
+                        m_HasChanges = true;
+                        m_LastChangeTime = std::chrono::steady_clock::now();
+                    }
+                    if (ImGui::InputInt("FTP Порт", &config.ShopFtpPort))
+                    {
+                        m_HasChanges = true;
+                        m_LastChangeTime = std::chrono::steady_clock::now();
+                    }
+                    if (ImGui::InputText("FTP Пользователь", &config.ShopFtpUser))
+                    {
+                        m_HasChanges = true;
+                        m_LastChangeTime = std::chrono::steady_clock::now();
+                    }
+                    if (ImGui::InputText("FTP Пароль", &config.ShopFtpPassword))
+                    {
+                        m_HasChanges = true;
+                        m_LastChangeTime = std::chrono::steady_clock::now();
+                    }
+                    if (ImGui::InputText("FTP Путь к изображениям", &config.ShopFtpImgsPath))
+                    {
+                        m_HasChanges = true;
+                        m_LastChangeTime = std::chrono::steady_clock::now();
+                    }
                 }
             }
         }
@@ -167,6 +196,12 @@ namespace LM
             item["db_password"] = config.DbPassword;
 
             item["server_imgs_path"] = config.ServerImgsPath;
+
+            item["shop_ftp_host"] = config.ShopFtpHost;
+            item["shop_ftp_port"] = config.ShopFtpPort;
+            item["shop_ftp_user"] = config.ShopFtpUser;
+            item["shop_ftp_password"] = config.ShopFtpPassword;
+            item["shop_ftp_imgs_path"] = config.ShopFtpImgsPath;
 
             jsonConfigs.push_back(item);
         }
@@ -205,6 +240,12 @@ namespace LM
             config.DbPassword = item.value("db_password", "");
 
             config.ServerImgsPath = item.value("server_imgs_path", "");
+
+            config.ShopFtpHost = item.value("shop_ftp_host", "");
+            config.ShopFtpPort = item.value("shop_ftp_port", 21);
+            config.ShopFtpUser = item.value("shop_ftp_user", "");
+            config.ShopFtpPassword = item.value("shop_ftp_password", "");
+            config.ShopFtpImgsPath = item.value("shop_ftp_imgs_path", "");
 
             m_Configs.push_back(config);
         }

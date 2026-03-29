@@ -10,6 +10,7 @@
 #include "ImGui/Overlays/ScriptPopup.h"
 #include "Managers/TextureManager.h"
 #include "Project/Processing/XlsxPageViewData.h"
+#include "Project/ProjectVariantExcelTables.hpp"
 #include "Python/PythonCommand.h"
 #include "Utils/FileFormat.h"
 
@@ -2428,28 +2429,41 @@ namespace LM
 
             if (ImGui::TreeNodeEx("YG1-Shop", ImGuiTreeNodeFlags_Framed | ImGuiTreeNodeFlags_DefaultOpen))
             {
-                if (ImGui::Button("Собрать файлы в один и добавить доп. поля для yg1-shop"))
+                if (ImGuiButtonColored("Загрузить картинки во временную папку",
+                                       m_Project->GetVariantExcelTables().GetIsUploadImagesForYg1ShopNeedRebuild()
+                                           ? needProcessColor
+                                           : processedColor))
+                {
+                    Save();
+                    UploadImagesForYg1Shop();
+                }
+
+                if (ImGuiButtonColored("Собрать файлы в один и добавить доп. поля для yg1-shop",
+                                       m_Project->GetVariantExcelTables().GetIsGenerateYg1ShopCombinedXlsxNeedRebuild()
+                                           ? needProcessColor
+                                           : processedColor))
                 {
                     Save();
                     Yg1ShopConstructionLevelConfigSetup::Get().SaveConfigIfHasChanges();
+                    GenerateYg1ShopCombinedXlsx();
+                }
 
-                    PythonCommand pythonCommand("./assets/scripts/excel_add_extra_info-yg1-shop.py");
-                    pythonCommand.AddPathArg(
-                        m_Project->GetVariantExcelTablesHelpers().GetXlsxAddExtraInfoWithProcessedImagesPath(),
-                        "--xlsx_path");
-                    pythonCommand.AddPathArg(
-                        m_Project->GetVariantExcelTablesHelpers().GetXlsxForServerImportPath(kAddExtraInfoYg1Parser),
-                        "--save_path");
-                    pythonCommand.AddPathArg("https://yg1-shop.ru/nameduploads/", "--img_prefix");
-
-                    ScriptPopup::Get()->AddToQueue(pythonCommand,
-                                                   { "Заполнение данных для yg1-shop",
-                                                     []() {
-                                                         ImGui::Text("Работает скрипт заполнения данных для yg1-shop");
-                                                         ImGui::Text("Это может занять несколько минут");
-                                                         ImGui::Text("После его завершения можно закрыть это окно");
-                                                     },
-                                                     [](int) {} });
+                if (ImGui::Button("Открыть папку с Xlsx в проводнике"))
+                {
+                    std::filesystem::path path =
+                        m_Project->GetVariantExcelTablesHelpers().GetXlsxForServerImportPath(kAddExtraInfoYg1Parser);
+                    if (!std::filesystem::exists(path))
+                    {
+                        Overlay::Get()->Start(Format("Папка не найдена \nВозможно вы забыли обработать файлы \n{}",
+                                                     path.make_preferred().string()));
+                    }
+                    else
+                    {
+                        std::filesystem::path command = std::filesystem::path("explorer.exe");
+                        // Open Explorer directly inside the folder (don't open parent and select)
+                        std::string arg = "\"" + path.make_preferred().string() + "\"";
+                        std::system((command.string() + " " + arg).c_str());
+                    }
                 }
 
                 ImGui::TreePop();
@@ -2541,7 +2555,7 @@ namespace LM
         ProcessImages(false);
 
         // TODO: add variant for use add extra info xlsx without processed images
-        PythonCommand pythonCommand("./assets/scripts/imgs_to_server_format_and_upload.py");
+        PythonCommand pythonCommand("./assets/scripts/imgs_to_server_format_and_upload_wbi_tools.py");
         pythonCommand.AddPathArg(m_Project->GetVariantExcelTablesHelpers().GetXlsxAddExtraInfoWithProcessedImagesPath(),
                                  "--xlsx_path");
         pythonCommand.AddPathArg(
@@ -2634,6 +2648,61 @@ namespace LM
                   ImGui::Text("После его завершения можно закрыть это окно");
               },
               [this](int) { m_Project->GetVariantExcelTables().SetIsImportDataToWbiToolsServerNeedRebuild(false); } });
+    }
+
+    void XlsxPageView::UploadImagesForYg1Shop(bool _IsNeedRunWithoutCheckIsDone)
+    {
+
+        if (!_IsNeedRunWithoutCheckIsDone &&
+            !m_Project->GetVariantExcelTables().GetIsGenerateYg1ShopCombinedXlsxNeedRebuild())
+        {
+            return;
+        }
+
+        ProcessImages(false);
+
+        PythonCommand pythonCommand("./assets/scripts/imgs_to_server_upload_yg1-shop.py");
+        pythonCommand.AddArg(m_Project->GetName(), "--project_name");
+        pythonCommand.AddPathArg(m_Project->GetVariantExcelTablesHelpers().GetImgsProcessedPath(), "--imgs_path");
+
+        ScriptPopup::Get()->AddToQueue(
+            pythonCommand,
+            { "Загрузка изображений для yg1-shop",
+              []() {
+                  ImGui::Text("Работает скрипт загрузки изображений для yg1-shop");
+                  ImGui::Text("Это может занять несколько минут");
+                  ImGui::Text("После его завершения можно закрыть это окно");
+              },
+              [this](int) { m_Project->GetVariantExcelTables().SetIsUploadImagesForYg1ShopNeedRebuild(false); } });
+    }
+
+    void XlsxPageView::GenerateYg1ShopCombinedXlsx(bool _IsNeedRunWithoutCheckIsDone)
+    {
+        if (!_IsNeedRunWithoutCheckIsDone &&
+            !m_Project->GetVariantExcelTables().GetIsGenerateYg1ShopCombinedXlsxNeedRebuild())
+        {
+            return;
+        }
+
+        ProcessImages(false);
+
+        PythonCommand pythonCommand("./assets/scripts/excel_add_extra_info-yg1-shop.py");
+        pythonCommand.AddPathArg(m_Project->GetVariantExcelTablesHelpers().GetXlsxAddExtraInfoWithProcessedImagesPath(),
+                                 "--xlsx_path");
+        pythonCommand.AddPathArg(
+            m_Project->GetVariantExcelTablesHelpers().GetXlsxForServerImportPath(kAddExtraInfoYg1Parser),
+            "--save_path");
+        pythonCommand.AddPathArg("https://yg1-shop.ru/nameduploads/", "--img_prefix");
+
+        ScriptPopup::Get()->AddToQueue(
+            pythonCommand,
+            { "Заполнение данных для yg1-shop",
+              []() {
+                  ImGui::Text("Работает скрипт заполнения данных для yg1-shop");
+                  ImGui::Text("Это может занять несколько минут");
+                  ImGui::Text("После его завершения можно закрыть это окно");
+              },
+              [this](int) { m_Project->GetVariantExcelTables().SetIsGenerateYg1ShopCombinedXlsxNeedRebuild(false); } });
     }
 
 }    // namespace LM

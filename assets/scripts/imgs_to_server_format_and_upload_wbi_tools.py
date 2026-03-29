@@ -1,13 +1,13 @@
 import hashlib
 import os
 import shutil
-import traceback
 from typing import Callable
 
 import pandas as pd
 import paramiko
 import pydantic
-from base import (DEFAULT_CONNECTION_CONFIG_PATH, ArgsBase, import_connection_config, parse_args_new, print_to_cpp)
+from base import (DEFAULT_CONNECTION_CONFIG_PATH, ArgsBase, import_connection_config, log_info_to_cpp,
+                  log_warning_to_cpp, start_program)
 
 
 class Args(ArgsBase):
@@ -131,7 +131,7 @@ def sftp_upload_file(local_file, remote_file, sftp_client: paramiko.SFTPClient):
     if remote_dir:
         sftp_mkdir_p(remote_dir, sftp_client)
 
-    print_to_cpp(f"[sftp] {local_file} -> {remote_file}")
+    log_info_to_cpp(f"[sftp] {local_file} -> {remote_file}")
     sftp_client.put(local_file, remote_file)
 
 
@@ -142,7 +142,7 @@ def local_copy_file(local_file, destination_file):
     if destination_dir:
         os.makedirs(destination_dir, exist_ok=True)
 
-    print_to_cpp(f"[local] {local_file} -> {destination_file}")
+    log_info_to_cpp(f"[local] {local_file} -> {destination_file}")
     shutil.copyfile(local_file, destination_file)
 
 
@@ -171,11 +171,11 @@ def sha256_org_not_exists(
         path, pathname, ext = sha256_org(fname, iteration)
 
         is_file_exists = is_file_exists_cb(server_img_path, pathname)
-        print_to_cpp(
+        log_info_to_cpp(
             f"Проверка существования файла на сервере: {pathname} - {'найден' if is_file_exists else 'не найден'}")
         is_files_equal = is_files_equal_cb(fname, os.path.join(server_img_path, pathname).replace("\\", "/"))
         if is_file_exists and not is_files_equal:
-            print_to_cpp("Файл с таким именем существует, но содержимое отличается. Повторное хеширование...")
+            log_warning_to_cpp("Файл с таким именем существует, но содержимое отличается. Повторное хеширование...")
             iteration += 1
             continue
 
@@ -198,25 +198,25 @@ def process_files(args: Args):
 
     is_local = connection_config.ssh_host == "" or connection_config.ssh_host is None
 
-    print_to_cpp("Начало обработки изображений")
+    log_info_to_cpp("Начало обработки изображений")
     imgs_set: set[str] = set()
     imgs_replace_map: dict[str, str] = {}
-    print_to_cpp(f"Создание списка изображений из файлов в папке: {args.xlsx_path}")
+    log_info_to_cpp(f"Создание списка изображений из файлов в папке: {args.xlsx_path}")
     for filename in os.scandir(args.xlsx_path):
         if filename.is_file() and not filename.name.startswith("~$"):
-            print_to_cpp(f"Прочитан файл: {filename.name}")
-            # print_to_cpp(f"{filename.path} {filename.name}")
+            log_info_to_cpp(f"Прочитан файл: {filename.name}")
+            # log_info_to_cpp(f"{filename.path} {filename.name}")
             df = pd.read_excel(filename.path)
             for col in ['img_pic', 'img_drw']:
                 if col in df.columns:
                     imgs_set.update(df[col].replace('', pd.NA).dropna().astype(str))
 
-    print_to_cpp(f"Всего уникальных изображений для обработки: {len(imgs_set)}")
+    log_info_to_cpp(f"Всего уникальных изображений для обработки: {len(imgs_set)}")
 
-    print_to_cpp("Подключение к SSH серверу для загрузки изображений")
+    log_info_to_cpp("Подключение к SSH серверу для загрузки изображений")
     with SshOrLocalConnection(connection_config.ssh_host, connection_config.ssh_user, connection_config.ssh_password,
                               connection_config.ssh_port) as (ssh_client, sftp_client):
-        print_to_cpp("Создание карты замены изображений и загрузка на сервер")
+        log_info_to_cpp("Создание карты замены изображений и загрузка на сервер")
 
         is_file_exists_cb = (
             lambda remote_base_path, pathname: file_exists_on_server(remote_base_path, pathname, sftp_client)
@@ -239,10 +239,10 @@ def process_files(args: Args):
                                  os.path.join(connection_config.server_imgs_path, server_pathname).replace("\\", "/"),
                                  sftp_client)
 
-    print_to_cpp("Создание новых xlsx файлов с обновленными ссылками на изображения")
+    log_info_to_cpp("Создание новых xlsx файлов с обновленными ссылками на изображения")
     for filename in os.scandir(args.xlsx_path):
         if filename.is_file() and not filename.name.startswith("~$"):
-            print_to_cpp(f"Прочитан файл: {filename.name}")
+            log_info_to_cpp(f"Прочитан файл: {filename.name}")
             df = pd.read_excel(filename.path)
             for col in ['img_pic', 'img_drw']:
                 if col in df.columns:
@@ -255,20 +255,15 @@ def process_files(args: Args):
             worksheet.autofit()
             writer.close()
 
-            print_to_cpp(f"Сохранен файл: {save_path}")
+            log_info_to_cpp(f"Сохранен файл: {save_path}")
 
 
-try:
-    process_files(parse_args_new(Args))
-except KeyboardInterrupt:
-    pass
-except Exception as e:                                                                                                  # pylint: disable=broad-exception-caught
-    formatted_traceback = traceback.format_exc()                                                                        # pylint: disable=invalid-name
-    print_to_cpp(f"An error occurred:\n{formatted_traceback}")
+if __name__ == "__main__":
+    start_program(process_files, Args)
 
 # pylint: disable=pointless-string-statement
 r"""
-python ./assets/scripts/imgs_to_server_format_and_upload.py `
+python ./assets/scripts/imgs_to_server_format_and_upload_wbi_tools.py `
     --xlsx_path      "W:\Work\WBI\ToolinformProjects\WBI_Stock_2\data\excel\xlsx_add_info" `
     --xlsx_save_path "W:\Work\WBI\ToolinformProjects\WBI_Stock_2\data\excel\for_server_import" `
     --ssh_user "latyshov" `

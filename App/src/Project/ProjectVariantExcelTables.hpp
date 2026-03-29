@@ -60,6 +60,12 @@ namespace LM
         bool GetIsImportDataToWbiToolsServerNeedRebuild() const { return IsImportDataToWbiToolsServerNeedRebuild; }
         void SetIsImportDataToWbiToolsServerNeedRebuild(bool _NeedRebuild);
 
+        bool GetIsUploadImagesForYg1ShopNeedRebuild() const { return IsUploadImagesForYg1ShopNeedRebuild; }
+        void SetIsUploadImagesForYg1ShopNeedRebuild(bool _NeedRebuild);
+
+        bool GetIsGenerateYg1ShopCombinedXlsxNeedRebuild() const { return IsGenerateYg1ShopCombinedXlsxNeedRebuild; }
+        void SetIsGenerateYg1ShopCombinedXlsxNeedRebuild(bool _NeedRebuild);
+
     public:
         friend SerializerGetPropertiesAll;
 
@@ -73,6 +79,9 @@ namespace LM
 
         bool IsUploadImagesAndPrepareXlsxForWbiToolsNeedRebuild = true;
         bool IsImportDataToWbiToolsServerNeedRebuild = true;
+
+        bool IsUploadImagesForYg1ShopNeedRebuild = true;
+        bool IsGenerateYg1ShopCombinedXlsxNeedRebuild = true;
     };
 
 }    // namespace LM
