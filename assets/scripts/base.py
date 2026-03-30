@@ -130,16 +130,14 @@ def remove_model_suffix(val) -> str:
 
 
 def interp_model(val) -> str:
-    return (str(val).replace(" ", "").replace(" ", "").replace("-", "").replace(".", ",").replace("*", "").replace(
-        "^",
-        "").replace("\\", "").replace("/", "").upper().replace("К", "K").replace("Е", "E").replace("Н", "H").replace(
-            "Х", "X").replace("В",
-                              "B").replace("А",
-                                           "A").replace("Р",
-                                                        "P").replace("О",
-                                                                     "O").replace("С",
-                                                                                  "C").replace("М",
-                                                                                               "M").replace("Т", "T"))
+    return (                                                                                                            #
+        str(val).                                                                                                       #
+        replace(" ", "").replace(" ", "").replace("-", "").replace(".", ",").                                           #
+        replace("*", "").replace("^", "").replace("\\", "").replace("/", "").                                           #
+        upper().                                                                                                        #
+        replace("К", "K").replace("Е", "E").replace("Н", "H").replace("Х", "X").replace("В", "B").replace("А", "A").    #
+        replace("Р", "P").replace("О", "O").replace("С", "C").replace("М", "M").replace("Т", "T")                       #
+    )
 
 
 class ConnectionConfigItem(ArgsBase):
