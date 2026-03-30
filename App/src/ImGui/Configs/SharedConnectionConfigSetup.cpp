@@ -79,6 +79,8 @@ namespace LM
                     }
                     ImGui::Separator();
 
+                    ImGui::SeparatorText("WBI Tools");
+
                     ImGui::Text("Оставьте 'SSH Хост' пустым, если не требуется SSH туннелирование.");
 
                     if (ImGui::InputText("SSH Хост", &config.SshHost))
@@ -103,6 +105,8 @@ namespace LM
                     }
 
                     ImGui::Separator();
+
+                    ImGui::Text("Database");
 
                     if (ImGui::InputText("DB Хост", &config.DbHost))
                     {
@@ -134,6 +138,9 @@ namespace LM
                     }
 
                     ImGui::Separator();
+
+                    ImGui::SeparatorText("YG1 Shop");
+
                     ImGui::Text("Настройки FTP магазина");
 
                     if (ImGui::InputText("FTP Хост", &config.ShopFtpHost))

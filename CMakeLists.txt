@@ -58,6 +58,8 @@ endif()
     add_compile_definitions(OPENGL)
 if(NOT CMAKE_BUILD_TYPE STREQUAL "Release")
     add_compile_definitions(RES_FOLDER="${CMAKE_SOURCE_DIR}")
+else()
+    add_compile_definitions(RES_FOLDER="")
 endif()
 
 # add_custom_target(check chmod 777 ${CMAKE_SOURCE_DIR}/lint.sh && ${CMAKE_SOURCE_DIR}/lint.sh)
