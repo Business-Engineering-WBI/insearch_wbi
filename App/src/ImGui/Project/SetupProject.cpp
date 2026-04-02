@@ -205,6 +205,24 @@ namespace LM
             }
         }
 
+        if (ImGui::Button("Открыть папку с картинками без правил"))
+        {
+            std::filesystem::path path = _Project->GetVariantExcelTablesHelpers().GetImgsNoConditionPath();
+            if (!std::filesystem::exists(path))
+            {
+                Overlay::Get()->Start(Format("Папка не найдена \nВозникла неизвестная ошибка \nПуть: {}",
+                                                path.make_preferred().string()));
+            }
+            else
+            {
+                std::filesystem::path command = std::filesystem::path("explorer.exe");
+                // Open Explorer directly inside the folder (don't open parent and select)
+                std::string arg = "\"" + path.make_preferred().string() + "\"";
+                std::system((command.string() + " " + arg).c_str());
+            }
+        }
+
+
         static size_t filesCount = FileSystemUtils::FilesCountInDirectory(xlsxStartupPath);
         static std::vector<std::filesystem::path> paths;
         if (ImGui::Button("Обновить отображаемые файлы") || isNeedRebuild)

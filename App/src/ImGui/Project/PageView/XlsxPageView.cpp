@@ -39,6 +39,13 @@
 #include <string_view>
 #include <vector>
 
+#if defined(WIN32)
+    #define NOMINMAX
+    #include <Windows.h>
+#endif
+
+#define _CRT_SECURE_NO_WARNINGS
+
 NLOHMANN_JSON_NAMESPACE_BEGIN
 template <typename T>
 struct adl_serializer<std::optional<T>>
@@ -119,6 +126,10 @@ namespace LM
 
     const std::array kInterpModelSuffixesToRemove = { "_AMATI"sv, "_ASKUP"sv, "_DEREK"sv, "_HT"sv,
                                                       "_PL"sv,    "_LIK"sv,   "_ТИЗ"sv };
+
+    const constexpr std::string_view devChromeArgs =
+        "--remote-debugging-port=9222 --user-data-dir=\"C:\\chrome-dev\" "
+        "\"https://yg1-shop.ru/bitrix/admin/esol_import_excel.php?lang=ru&PROFILE_ID=34\"";
 
     static const std::array kInterpModelLettersToRemove = {
         std::pair {  " "sv,  ""sv },
@@ -2464,6 +2475,49 @@ namespace LM
                         std::string arg = "\"" + path.make_preferred().string() + "\"";
                         std::system((command.string() + " " + arg).c_str());
                     }
+                }
+
+#if defined(WIN32)
+                if (ImGui::Button("Открыть Dev Chrome из Program Files"))
+                {
+                    HINSTANCE result =
+                        ShellExecuteA(nullptr, "open", "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe",
+                                      devChromeArgs.data(), nullptr, SW_SHOWNORMAL);
+
+                    if (reinterpret_cast<size_t>(result) <= 32)
+                    {
+                        LOG_WARN("ShellExecute failed: {}", reinterpret_cast<size_t>(result));
+                    }
+                }
+                ImGui::SameLine();
+                if (ImGui::Button("Открыть Dev Chrome из AppData"))
+                {
+                    HINSTANCE result = ShellExecuteA(
+                        nullptr, "open",
+                        std::format("{}\\Google\\Chrome\\Application\\chrome.exe", std::getenv("LOCALAPPDATA")).c_str(),
+                        devChromeArgs.data(), nullptr, SW_SHOWNORMAL);
+
+                    if (reinterpret_cast<size_t>(result) <= 32)
+                    {
+                        LOG_WARN("ShellExecute failed: {}", reinterpret_cast<size_t>(result));
+                    }
+                }
+#endif
+
+                if (ImGui::Button("Автоматически подставить XML_ID в шаблон для yg1-shop"))
+                {
+
+                    PythonCommand pythonCommand("./assets/scripts/imgs_to_server_upload_yg1-shop.py");
+
+                    ScriptPopup::Get()->AddToQueue(
+                        pythonCommand,
+                        { "Автоматическая подстановка XML_ID в шаблон для yg1-shop",
+                          []() {
+                              ImGui::Text("Работает скрипт автоматической подстановки XML_ID в шаблон для yg1-shop");
+                              ImGui::Text("Это может занять несколько минут");
+                              ImGui::Text("После его завершения можно закрыть это окно");
+                          },
+                          [this](int) { m_Project->GetVariantExcelTables().SetIsAddExtraInfoNeedRebuild(false); } });
                 }
 
                 ImGui::TreePop();
