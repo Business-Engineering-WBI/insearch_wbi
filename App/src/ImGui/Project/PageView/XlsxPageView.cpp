@@ -2507,7 +2507,7 @@ namespace LM
                 if (ImGui::Button("Автоматически подставить XML_ID в шаблон для yg1-shop"))
                 {
 
-                    PythonCommand pythonCommand("./assets/scripts/imgs_to_server_upload_yg1-shop.py");
+                    PythonCommand pythonCommand("./assets/scripts/yg1-shop_auto_xml_id.py");
 
                     ScriptPopup::Get()->AddToQueue(
                         pythonCommand,

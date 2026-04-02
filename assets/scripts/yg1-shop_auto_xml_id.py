@@ -1,9 +1,10 @@
+import pydantic
 from playwright.sync_api import sync_playwright, TimeoutError as PLTimeoutError
 
 from base import (ArgsBase, log_info_to_cpp, log_warning_to_cpp, log_error_to_cpp, start_program)
 
 
-def Args(ArgsBase):
+class Args(ArgsBase):
     pass
 
 
@@ -39,7 +40,7 @@ class NoInputException(Exception):
     pass
 
 
-def handle_fields():
+def handle_fields(_: Args):
     with sync_playwright() as p:
         browser = p.chromium.connect_over_cdp("http://localhost:9222")
 
