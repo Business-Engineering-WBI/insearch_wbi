@@ -5,7 +5,9 @@
 #include "Engine/Utils/utf8.h"
 #include "ImGui/Overlays/Overlay.h"
 
+#include <algorithm>
 #include <fstream>
+#include <vector>
 
 #include <xlnt/xlnt.hpp>
 
@@ -147,19 +149,36 @@ namespace LM
     {
         if (!IsPageLoaded(_PageId))
         {
-            auto pathIterator = std::filesystem::directory_iterator(m_VariantExcelTablesXlsxStartupPath);
-            for (int i = 0; i < _PageId; ++i)
+            if (_PageId < 0)
             {
-                ++pathIterator;
+                LOG_CORE_ERROR("Invalid page ID: {}", _PageId);
+                return;
             }
-            if (pathIterator == std::filesystem::end(pathIterator))
+
+            std::vector<std::filesystem::path> xlsxPaths;
+            for (const auto& entry : std::filesystem::directory_iterator(m_VariantExcelTablesXlsxStartupPath))
+            {
+                if (!entry.is_regular_file())
+                {
+                    continue;
+                }
+
+                std::filesystem::path path = entry.path();
+                if (path.extension() == ".xlsx")
+                {
+                    xlsxPaths.push_back(path);
+                }
+            }
+
+            std::ranges::sort(xlsxPaths);
+
+            if (static_cast<size_t>(_PageId) >= xlsxPaths.size())
             {
                 LOG_CORE_ERROR("No file found for page ID: {}", _PageId);
                 return;
             }
 
-            std::filesystem::path path =
-                std::filesystem::path(m_VariantExcelTablesXlsxStartupPath) / pathIterator->path().filename();
+            std::filesystem::path path = xlsxPaths[static_cast<size_t>(_PageId)];
 
             if (m_CurrentPageData.has_value() && m_CurrentPageData->IsLoaded())
             {
@@ -380,7 +399,7 @@ namespace LM
         {
             for (size_t colId = 0; colId < m_TableData[rowId].size(); ++colId)
             {
-                ws.cell(static_cast<xlnt::column_t>(static_cast<xlnt::column_t::index_t>(colId + 1)), 
+                ws.cell(static_cast<xlnt::column_t>(static_cast<xlnt::column_t::index_t>(colId + 1)),
                         static_cast<xlnt::row_t>(rowId + 1))
                     .value(StrTrim(m_TableData[rowId][colId].Value));
             }

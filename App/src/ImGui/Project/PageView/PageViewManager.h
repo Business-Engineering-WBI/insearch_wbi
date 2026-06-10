@@ -38,6 +38,8 @@ namespace LM
         static inline const float kBntSizeCoef = 2.0f;
 
     protected:
+        static int GetPagesCountByManager(const Ref<Project>& _Project, const std::string& _ManagerHash);
+
         Ref<Project> m_Project;
         int m_PageId = 0;
 

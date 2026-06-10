@@ -131,6 +131,12 @@ namespace LM
 
     void SetupProject::DrawRawExcelFolderSettings(Ref<Project> _Project)
     {
+        if (ImGui::TreeNodeEx("Настройки каталога", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_Framed))
+        {
+            DrawCatalog(_Project);
+            ImGui::TreePop();
+        }
+
         std::filesystem::path xlsxStartupPath = _Project->GetVariantExcelTablesHelpers().GetXlsxStartupPath();
 
         ImGui::Text("Папка с Excel: %s", xlsxStartupPath.string().c_str());
@@ -211,7 +217,7 @@ namespace LM
             if (!std::filesystem::exists(path))
             {
                 Overlay::Get()->Start(Format("Папка не найдена \nВозникла неизвестная ошибка \nПуть: {}",
-                                                path.make_preferred().string()));
+                                             path.make_preferred().string()));
             }
             else
             {
@@ -221,7 +227,6 @@ namespace LM
                 std::system((command.string() + " " + arg).c_str());
             }
         }
-
 
         static size_t filesCount = FileSystemUtils::FilesCountInDirectory(xlsxStartupPath);
         static std::vector<std::filesystem::path> paths;
