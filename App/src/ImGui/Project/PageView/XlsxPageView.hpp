@@ -80,6 +80,7 @@ namespace LM
     protected:
         void DrawTableActions(XlsxPageViewData& _XlsxViewData, XlsxPageViewDataTypes::TableData& _TableData);
         void DrawGlobalAddListWindow(XlsxPageViewData& _XlsxViewData);
+        std::vector<std::string> GetSortedFieldNamesByHeaderAndColumnFill(XlsxPageViewData& _XlsxViewData) const;
 
         template <XlsxPageViewDataTypes::DerivedFromSimpleListItemBase T>
         void DrawSimpleListTemplateWindow(std::string_view _WindowName, XlsxPageViewData& _XlsxViewData,
@@ -126,6 +127,9 @@ namespace LM
         void InsertFromClipboard(XlsxPageViewData& _XlsxViewData, XlsxPageViewDataTypes::TableData& _TableData);
         void ClearSelected(XlsxPageViewData& _XlsxViewData, XlsxPageViewDataTypes::TableData& _TableData,
                            const SelectionRegion& _SelectionRegion);
+
+        void DuplicateCellToColumn(XlsxPageViewData& _XlsxViewData, XlsxPageViewDataTypes::TableData& _TableData,
+                                   const glm::u64vec2& _Cell);
 
         void UnSelectAll(bool _UnSelectExtraCell = true);
 

@@ -131,6 +131,12 @@ namespace LM
 
     void SetupProject::DrawRawExcelFolderSettings(Ref<Project> _Project)
     {
+        if (ImGui::TreeNodeEx("Настройки каталога", ImGuiTreeNodeFlags_DefaultOpen | ImGuiTreeNodeFlags_Framed))
+        {
+            DrawCatalog(_Project);
+            ImGui::TreePop();
+        }
+
         std::filesystem::path xlsxStartupPath = _Project->GetVariantExcelTablesHelpers().GetXlsxStartupPath();
 
         ImGui::Text("Папка с Excel: %s", xlsxStartupPath.string().c_str());

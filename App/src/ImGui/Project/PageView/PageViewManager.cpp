@@ -7,10 +7,37 @@
 
 #include <imgui.h>
 
+#include <algorithm>
 #include <filesystem>
 
 namespace LM
 {
+
+    int PageViewManager::GetPagesCountByManager(const Ref<Project>& _Project, const std::string& _ManagerHash)
+    {
+        if (_Project == Project::s_ProjectNotOpen)
+        {
+            return 0;
+        }
+
+        const auto CountFiles = [](const std::filesystem::path& _Path) -> int {
+            return static_cast<int>(FileSystemUtils::FilesCountInDirectory(_Path));
+        };
+
+        if (_ManagerHash == kHashPdfOcr || _ManagerHash == kHashPdf)
+        {
+            return CountFiles(_Project->GetPdfTablesWithOcrTypeRawImgPath());
+        }
+
+        if (_ManagerHash == kHashExcelFolder)
+        {
+            const int xlsxCount = CountFiles(_Project->GetVariantExcelTablesHelpers().GetXlsxStartupPath());
+            const int imgCount = CountFiles(_Project->GetPdfTablesWithOcrTypeRawImgPrevPath());
+            return std::max(xlsxCount, imgCount);
+        }
+
+        return 0;
+    }
 
     PageViewManager::PageViewManager() { }
 
@@ -73,6 +100,7 @@ namespace LM
         if (!s_Managers.contains(kHashExcelFolder))
         {
             s_Managers[kHashExcelFolder] = CreateRef<PageViewManager>();
+            s_Managers[kHashExcelFolder]->m_Views.emplace_back(CreateRef<RawImgPageView>());
             s_Managers[kHashExcelFolder]->m_Views.emplace_back(CreateRef<XlsxPageView>());
         }
         return s_Managers[kHashExcelFolder];
@@ -84,24 +112,8 @@ namespace LM
 
     void PageViewManager::DrawViewTopMenu()
     {
-        // TODO: Get pages count from pdf info ???
-        int filesCount = 0;
-        if (s_CurrentManagerHash == kHashPdfOcr)
-        {
-            filesCount = static_cast<int>(
-                FileSystemUtils::FilesCountInDirectory(m_Project->GetPdfTablesWithOcrTypeRawImgPath()));
-        }
-        else if (s_CurrentManagerHash == kHashPdf)
-        {
-            // TODO: other way to get pdf pages count ???
-            filesCount = static_cast<int>(
-                FileSystemUtils::FilesCountInDirectory(m_Project->GetPdfTablesWithOcrTypeRawImgPath()));
-        }
-        else if (s_CurrentManagerHash == kHashExcelFolder)
-        {
-            filesCount = static_cast<int>(
-                FileSystemUtils::FilesCountInDirectory(m_Project->GetVariantExcelTablesHelpers().GetXlsxStartupPath()));
-        }
+        const int filesCount = GetPagesCountByManager(m_Project, s_CurrentManagerHash);
+        const int maxPageId = glm::max(filesCount - 1, 0);
 
         ImVec2 buttonSize = { ImGui::GetFontSize() * kBntSizeCoef, ImGui::GetFontSize() * kBntSizeCoef };
 
@@ -120,7 +132,7 @@ namespace LM
         ImGui::SameLine();
 
         ImGui::SetNextItemWidth(ImGui::GetFontSize() * 10.0f);
-        ImGui::DragInt("##PageIdInput", &newPageId, 0.01f, 0, filesCount - 1);
+        ImGui::DragInt("##PageIdInput", &newPageId, 0.01f, 0, maxPageId);
         ImGui::SameLine();
 
         if (ImGui::Button(">", buttonSize))
@@ -132,10 +144,10 @@ namespace LM
         ImGui::SameLine();
         if (ImGui::Button(">>", buttonSize))
         {
-            newPageId = filesCount - 1;
+            newPageId = maxPageId;
         }
 
-        newPageId = glm::clamp(newPageId, 0, filesCount - 1);
+        newPageId = glm::clamp(newPageId, 0, maxPageId);
 
         if (newPageId != m_PageId)
         {
@@ -176,10 +188,10 @@ namespace LM
 
     int PageViewManager::SetPage(int _PageId)
     {
-        int filesCount =
-            static_cast<int>(FileSystemUtils::FilesCountInDirectory(m_Project->GetPdfTablesWithOcrTypeRawImgPath()));
+        const int filesCount = GetPagesCountByManager(m_Project, s_CurrentManagerHash);
+        const int maxPageId = glm::max(filesCount - 1, 0);
 
-        m_PageId = glm::clamp(_PageId, 0, filesCount - 1);
+        m_PageId = glm::clamp(_PageId, 0, maxPageId);
 
         return m_PageId;
     }

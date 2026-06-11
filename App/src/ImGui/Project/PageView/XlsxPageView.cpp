@@ -28,6 +28,7 @@
 #include <unordered_map>
 #include <xlnt/xlnt.hpp>
 
+#include <algorithm>
 #include <array>
 #include <exception>
 #include <filesystem>
@@ -789,8 +790,10 @@ namespace LM
 
                 ImGui::BeginChild("GlobalAddListField", ImVec2(0.0f, ImGui::GetFontSize() * 24.0f),
                                   ImGuiChildFlags_AutoResizeX | ImGuiChildFlags_NavFlattened);
-                for (const auto& [fieldName, fieldDescr] : m_FieldsDescription)
+                for (const std::string& fieldName : GetSortedFieldNamesByHeaderAndColumnFill(_XlsxViewData))
                 {
+                    const FieldDescription& fieldDescr = m_FieldsDescription.at(fieldName);
+
                     if (globalAddList.contains(fieldName))
                     {
                         continue;
@@ -900,8 +903,10 @@ namespace LM
 
             ImGui::BeginChild("SimpleListField", ImVec2(0.0f, ImGui::GetFontSize() * 24.0f),
                               ImGuiChildFlags_AutoResizeX | ImGuiChildFlags_NavFlattened);
-            for (const auto& [fieldName, fieldDescr] : m_FieldsDescription)
+            for (const std::string& fieldName : GetSortedFieldNamesByHeaderAndColumnFill(_XlsxViewData))
             {
+                const FieldDescription& fieldDescr = m_FieldsDescription.at(fieldName);
+
                 if (_XlsxViewData.IsItemInSimpleListForCurrentPage(_SimpleList, fieldName))
                 {
                     continue;
@@ -966,6 +971,89 @@ namespace LM
         }
 
         _XlsxViewData.DeleteFromSimpleListForCurrentPage(_SimpleList, toDeleteName);
+    }
+
+    std::vector<std::string>
+    XlsxPageView::GetSortedFieldNamesByHeaderAndColumnFill(XlsxPageViewData& _XlsxViewData) const
+    {
+        std::vector<std::string> sortedFieldNames;
+        sortedFieldNames.reserve(m_FieldsDescription.size());
+
+        std::unordered_map<std::string, size_t> headerOrder;
+        std::unordered_map<std::string, bool> headerHasNonEmptyValues;
+
+        XlsxPageViewDataTypes::TableData& tableData = _XlsxViewData.GetCurrentPageData().GetTableData();
+        if (!tableData.empty())
+        {
+            const std::vector<XlsxPageViewDataTypes::TableCell>& headerRow = tableData[0];
+            for (size_t colId = 0; colId < headerRow.size(); ++colId)
+            {
+                const std::string& header = headerRow[colId].Value;
+                if (!m_FieldsDescription.contains(header) || headerOrder.contains(header))
+                {
+                    continue;
+                }
+
+                headerOrder[header] = colId;
+
+                bool hasNonEmptyValue = false;
+                for (size_t rowId = 1; rowId < tableData.size(); ++rowId)
+                {
+                    if ((colId < tableData[rowId].size()) && !tableData[rowId][colId].Value.empty())
+                    {
+                        hasNonEmptyValue = true;
+                        break;
+                    }
+                }
+                headerHasNonEmptyValues[header] = hasNonEmptyValue;
+            }
+        }
+
+        for (const auto& [fieldName, _] : m_FieldsDescription)
+        {
+            sortedFieldNames.push_back(fieldName);
+        }
+
+        auto getPriorityGroup = [&headerOrder, &headerHasNonEmptyValues,
+                                 &_XlsxViewData](const std::string& _FieldName) {
+            auto orderIt = headerOrder.find(_FieldName);
+            if (orderIt == headerOrder.end())
+            {
+                return 2;
+            }
+
+            auto nonEmptyIt = headerHasNonEmptyValues.find(_FieldName);
+            bool hasNonEmptyValue = (nonEmptyIt != headerHasNonEmptyValues.end()) && nonEmptyIt->second;
+            bool isFieldAlreadySetForPage = _XlsxViewData.IsItemInGlobalAddList(_FieldName) ||
+                                            _XlsxViewData.IsItemInSimpleAddListForCurrentPage(_FieldName) ||
+                                            _XlsxViewData.IsItemInSimpleCalcListForCurrentPage(_FieldName);
+
+            return (hasNonEmptyValue || isFieldAlreadySetForPage) ? 1 : 0;
+        };
+
+        std::ranges::sort(sortedFieldNames,
+                          [&headerOrder, &getPriorityGroup](const std::string& _A, const std::string& _B) {
+                              const int groupA = getPriorityGroup(_A);
+                              const int groupB = getPriorityGroup(_B);
+                              if (groupA != groupB)
+                              {
+                                  return groupA < groupB;
+                              }
+
+                              if (groupA < 2)
+                              {
+                                  const size_t orderA = headerOrder.at(_A);
+                                  const size_t orderB = headerOrder.at(_B);
+                                  if (orderA != orderB)
+                                  {
+                                      return orderA < orderB;
+                                  }
+                              }
+
+                              return _A < _B;
+                          });
+
+        return sortedFieldNames;
     }
 
     void XlsxPageView::DrawSimpleAddListWindow(XlsxPageViewData& _XlsxViewData)
@@ -1390,6 +1478,15 @@ namespace LM
         {
             SelectionRegion selectedRegion = GetSelectionRegion(_TableData, io.KeyShift);
             CopySelectedToClipboard(_TableData, selectedRegion);
+        }
+
+        if (m_SelectedCell.has_value() && !m_ExtraSelectedCell.has_value())
+        {
+            if (ImGui::IsKeyPressed(ImGuiKey_D) && io.KeyCtrl && io.KeyShift)
+            {
+                // TODO: Duplicate current cell value to entire column
+                DuplicateCellToColumn(_XlsxViewData, _TableData, *m_SelectedCell);
+            }
         }
 
         if (ImGui::IsKeyPressed(ImGuiKey_V) && io.KeyCtrl)
@@ -1952,6 +2049,19 @@ namespace LM
             }
         }
 
+        _XlsxViewData.PushHistory();
+    }
+
+    void XlsxPageView::DuplicateCellToColumn(XlsxPageViewData& _XlsxViewData,
+                                             XlsxPageViewDataTypes::TableData& _TableData, const glm::u64vec2& _Cell)
+    {
+        for (size_t rowId = 1; rowId < _TableData.size(); ++rowId)
+        {
+            if (rowId != _Cell.y)
+            {
+                _TableData[rowId][_Cell.x].Value = _TableData[_Cell.y][_Cell.x].Value;
+            }
+        }
         _XlsxViewData.PushHistory();
     }
 
