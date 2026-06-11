@@ -237,4 +237,6 @@ namespace LM
         return m_XlsxPageViewData.value();
     }
 
+    void Project::ClearXlsxPageViewData() { m_XlsxPageViewData.reset(); }
+
 }    // namespace LM

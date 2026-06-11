@@ -1,7 +1,5 @@
 #include "IImgPageView.h"
 
-#include "Engine/Utils/utf8.h"
-
 namespace LM
 {
 

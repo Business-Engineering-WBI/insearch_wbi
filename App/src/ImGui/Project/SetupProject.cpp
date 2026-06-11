@@ -190,6 +190,7 @@ namespace LM
             if (std::vector<std::string> filenames = FileDialogs::OpenMultipleFiles(kFileDialogsXlsxFilter);
                 !filenames.empty())
             {
+                _Project->ClearXlsxPageViewData();
                 size_t filesCount = FileSystemUtils::FilesCountInDirectory(xlsxStartupPath);
                 for (const auto& filename : filenames)
                 {
@@ -199,6 +200,32 @@ namespace LM
                             xlsxStartupPath / std::format("{}_{}", FileFormat::FormatId(filesCount++),
                                                           std::filesystem::path(filename).filename().string());
                         std::filesystem::copy_file(filename, destPath, std::filesystem::copy_options::skip_existing);
+                    }
+                    catch (const std::filesystem::filesystem_error& err)
+                    {
+                        Overlay::Get()->Start(
+                            Format("Не удалось скопировать файл: \n{} \nПричина: {}", filename, err.what()));
+                        LOG_CORE_ERROR("File copy error ({}), filesystem error: {}", filename, err.what());
+                    }
+                }
+                isNeedRebuild = true;
+            }
+        }
+        ImGui::SameLine();
+        if (ImGui::Button("Добавить существующие из ChatGPT папки"))
+        {
+            if (std::vector<std::string> filenames = FileDialogs::OpenMultipleFiles(kFileDialogsXlsxFilter);
+                !filenames.empty())
+            {
+                _Project->ClearXlsxPageViewData();
+                for (const auto& filename : filenames)
+                {
+                    try
+                    {
+                        const std::filesystem::path destPath =
+                            xlsxStartupPath / std::filesystem::path(filename).filename();
+                        std::filesystem::copy_file(filename, destPath,
+                                                   std::filesystem::copy_options::overwrite_existing);
                     }
                     catch (const std::filesystem::filesystem_error& err)
                     {

@@ -130,6 +130,7 @@ namespace LM
 
     void XlsxPageViewData::SavePageData()
     {
+        LOG_CORE_INFO("Saving page data for page ID: {}", GetCurrentPageId());
         if (m_CurrentPageData.has_value())
         {
             m_CurrentPageData->SaveXLSX();

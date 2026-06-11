@@ -36,6 +36,9 @@ namespace LM
 
     public:
         static inline const float kBntSizeCoef = 2.0f;
+        static inline const float kTopMenuFramePaddingY = 8.0f;
+        static inline const float kTopMenuButtonLargeFramePaddingX = 10.0f;
+        static inline const float kTopMenuButtonSmallFramePaddingX = 13.0f;
 
     protected:
         static int GetPagesCountByManager(const Ref<Project>& _Project, const std::string& _ManagerHash);

@@ -3,6 +3,7 @@
 #include "CutByPatternImgPageView.h"
 #include "RawImgPageView.h"
 #include "Utils/FileSystemUtils.h"
+#include "XlsxImgSyncPageView.h"
 #include "XlsxPageView.hpp"
 
 #include <imgui.h>
@@ -32,8 +33,9 @@ namespace LM
         if (_ManagerHash == kHashExcelFolder)
         {
             const int xlsxCount = CountFiles(_Project->GetVariantExcelTablesHelpers().GetXlsxStartupPath());
-            const int imgCount = CountFiles(_Project->GetPdfTablesWithOcrTypeRawImgPrevPath());
-            return std::max(xlsxCount, imgCount);
+            // const int imgCount = CountFiles(_Project->GetPdfTablesWithOcrTypeRawImgPrevPath());
+            return xlsxCount;
+            // return std::max(xlsxCount, imgCount);
         }
 
         return 0;
@@ -100,7 +102,7 @@ namespace LM
         if (!s_Managers.contains(kHashExcelFolder))
         {
             s_Managers[kHashExcelFolder] = CreateRef<PageViewManager>();
-            s_Managers[kHashExcelFolder]->m_Views.emplace_back(CreateRef<RawImgPageView>());
+            s_Managers[kHashExcelFolder]->m_Views.emplace_back(CreateRef<XlsxImgSyncPageView>());
             s_Managers[kHashExcelFolder]->m_Views.emplace_back(CreateRef<XlsxPageView>());
         }
         return s_Managers[kHashExcelFolder];
@@ -115,37 +117,52 @@ namespace LM
         const int filesCount = GetPagesCountByManager(m_Project, s_CurrentManagerHash);
         const int maxPageId = glm::max(filesCount - 1, 0);
 
-        ImVec2 buttonSize = { ImGui::GetFontSize() * kBntSizeCoef, ImGui::GetFontSize() * kBntSizeCoef };
+        ImGui::PushStyleVarY(ImGuiStyleVar_FramePadding, kTopMenuFramePaddingY);
 
+        // ImVec2 buttonSize = { ImGui::GetFontSize() * kBntSizeCoef, ImGui::GetFontSize() * kBntSizeCoef };
+
+        ImGui::PushStyleVarX(ImGuiStyleVar_FramePadding, kTopMenuButtonLargeFramePaddingX);
         int newPageId = m_PageId;
-        if (ImGui::Button("<<", buttonSize))
+        if (ImGui::Button("<<"))
         {
             newPageId = 0;
         }
+        ImGui::PopStyleVar();
+
         ImGui::SameLine();
 
         ImGui::PushButtonRepeat(true);
-        if (ImGui::Button("<", buttonSize))
+        ImGui::PushStyleVarX(ImGuiStyleVar_FramePadding, kTopMenuButtonSmallFramePaddingX);
+        if (ImGui::Button("<"))
         {
             --newPageId;
         }
+        ImGui::PopStyleVar();
+        ImGui::PopButtonRepeat();
+
         ImGui::SameLine();
 
         ImGui::SetNextItemWidth(ImGui::GetFontSize() * 10.0f);
         ImGui::DragInt("##PageIdInput", &newPageId, 0.01f, 0, maxPageId);
         ImGui::SameLine();
 
-        if (ImGui::Button(">", buttonSize))
+        ImGui::PushButtonRepeat(true);
+        ImGui::PushStyleVarX(ImGuiStyleVar_FramePadding, kTopMenuButtonSmallFramePaddingX);
+        if (ImGui::Button(">"))
         {
             ++newPageId;
         }
+        ImGui::PopStyleVar();
         ImGui::PopButtonRepeat();
 
         ImGui::SameLine();
-        if (ImGui::Button(">>", buttonSize))
+
+        ImGui::PushStyleVarX(ImGuiStyleVar_FramePadding, kTopMenuButtonLargeFramePaddingX);
+        if (ImGui::Button(">>"))
         {
             newPageId = maxPageId;
         }
+        ImGui::PopStyleVar();
 
         newPageId = glm::clamp(newPageId, 0, maxPageId);
 
@@ -163,6 +180,8 @@ namespace LM
                 m_PageId = newPageId;
             }
         }
+
+        ImGui::PopStyleVar();
     }
 
     void PageViewManager::DrawViews(Ref<Project> _Project)

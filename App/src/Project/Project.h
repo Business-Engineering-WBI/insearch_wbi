@@ -139,6 +139,7 @@ namespace LM
         void OnGenRawExcel();
 
         XlsxPageViewData& GetXlsxPageViewData();
+        void ClearXlsxPageViewData();
 
         const ProjectVariantExcelTablesHelpers& GetVariantExcelTablesHelpers() const
         {

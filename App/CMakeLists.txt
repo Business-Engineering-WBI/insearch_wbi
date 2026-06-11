@@ -32,6 +32,7 @@ set(SOURCES
     src/ImGui/Project/PageView/PageViewManager.cpp              src/ImGui/Project/PageView/PageViewManager.h
     src/ImGui/Project/PageView/IPageView.cpp                    src/ImGui/Project/PageView/IPageView.h
     src/ImGui/Project/PageView/IImgPageView.cpp                 src/ImGui/Project/PageView/IImgPageView.h
+    src/ImGui/Project/PageView/XlsxImgSyncPageView.cpp          src/ImGui/Project/PageView/XlsxImgSyncPageView.h
     src/ImGui/Project/PageView/RawImgPageView.cpp               src/ImGui/Project/PageView/RawImgPageView.h
     src/ImGui/Project/PageView/CutByPatternImgPageView.cpp      src/ImGui/Project/PageView/CutByPatternImgPageView.h
     src/ImGui/Project/PageView/XlsxPageView.cpp                 src/ImGui/Project/PageView/XlsxPageView.hpp

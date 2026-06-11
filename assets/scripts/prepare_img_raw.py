@@ -6,7 +6,7 @@ from pdf2image import convert_from_bytes, pdfinfo_from_bytes
 from PIL import Image
 from psutil import cpu_count                                                                                            # type: ignore
 
-PREV_MAX_SIZE = 2560, 1440
+PREV_MAX_SIZE = 3840, 2160
 
 
 class Args(ArgsBase):

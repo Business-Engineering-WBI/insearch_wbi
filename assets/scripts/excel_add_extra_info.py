@@ -103,7 +103,6 @@ def get_simple_rename_list(index: int, simple_rename_list: list[SimpleRenameList
 
 
 def get_per_page_calc_list_result(index: int, df: pd.DataFrame, per_page_calc_list_item: PerPageCalcListObject):
-
     result: list[None | int | float | str] = []
     for val_obj in per_page_calc_list_item.values:
         if index in val_obj.index:
@@ -297,12 +296,10 @@ def df_remove_model_suffix(df: pd.DataFrame):
 # NOTE: rows_count = len(df.index)
 # NOTE: cols_count = len(df.columns)
 # NOTE: cols_names = list(df.columns)
-def add_extra_info_single(xlsx_path: os.DirEntry[str], save_path: str, extra_info_rules: ExtraInfoRules,
+def add_extra_info_single(xlsx_path: Path, page_id: int, save_path: str, extra_info_rules: ExtraInfoRules,
                           per_page_img_folder: str, per_page_rule_img_folder: str, no_condition_img_folder: str,
                           extra_parser_type: str):
-    page_id = int(xlsx_path.name.split('.')[0].split("_")[0])
-
-    dtype_dict = {
+    dtype_dict: dict[str, str | type] = {
         "model": str,
         "codem": str,
         "manuf": str,
@@ -317,7 +314,7 @@ def add_extra_info_single(xlsx_path: os.DirEntry[str], save_path: str, extra_inf
         "cs1": str,
     }
 
-    df = pd.read_excel(xlsx_path.path, index_col=None, engine="openpyxl", dtype=dtype_dict)
+    df = pd.read_excel(xlsx_path, index_col=None, engine="openpyxl", dtype=dtype_dict)
 
     df_remove_model_suffix(df)
     handle_glob_add_list(df, page_id, extra_info_rules.global_add_list)
@@ -366,12 +363,15 @@ def add_extra_info(args: Args):
         return
 
     os.makedirs(args.save_path, exist_ok=True)
-    for filename in os.scandir(args.xlsx_path):
-        if filename.is_file() and not filename.name.startswith("~$"):
-            log_info_to_cpp(f"Обработка файла: {filename.name}")
-            add_extra_info_single(filename, args.save_path, extra_info_rules, args.per_page_img_folder,
-                                  args.per_page_rule_img_folder, args.no_condition_img_folder, args.extra_parser_type)
-            log_info_to_cpp("Файл обработан успешно!")
+
+    xlsx_path = Path(args.xlsx_path)
+    filenames = sorted(filter(lambda f: f.is_file() and not f.name.startswith("~$"), list(xlsx_path.rglob("*.xlsx"))))
+
+    for i, filename in enumerate(filenames):
+        log_info_to_cpp(f"Обработка файла: {filename.name}")
+        add_extra_info_single(filename, i, args.save_path, extra_info_rules, args.per_page_img_folder,
+                              args.per_page_rule_img_folder, args.no_condition_img_folder, args.extra_parser_type)
+        log_info_to_cpp("Файл обработан успешно!")
 
     log_info_to_cpp("Все файлы обработаны успешно!")
 
