@@ -75,13 +75,13 @@ def split_img(img_path: os.DirEntry[str], pattern_1, pattern_2, pattern_offsets:
     if not res_img.size:
         return False
 
-    res_img = cv2.cvtColor(res_img, cv2.COLOR_BGR2GRAY)
-    res_img = cv2.GaussianBlur(res_img, (3, 3), 0)
-    res_img = cv2.threshold(res_img, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)[1]
+    # res_img = cv2.cvtColor(res_img, cv2.COLOR_BGR2GRAY)
+    # res_img = cv2.GaussianBlur(res_img, (3, 3), 0)
+    # res_img = cv2.threshold(res_img, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)[1]
 
-    kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
-    res_img = cv2.morphologyEx(res_img, cv2.MORPH_OPEN, kernel, iterations=1)
-    res_img = 255 - res_img
+    # kernel = cv2.getStructuringElement(cv2.MORPH_RECT, (3, 3))
+    # res_img = cv2.morphologyEx(res_img, cv2.MORPH_OPEN, kernel, iterations=1)
+    # res_img = 255 - res_img
 
     img_save_path = os.path.join(save_path, img_path.name)
     cv2.imencode(".png", res_img)[1].tofile(img_save_path)
@@ -114,6 +114,9 @@ def create_pattern_and_get_pixel_offset(img_path: str, save_filename: str, perc_
 
 
 def split_by_pattern(args: Args):
+    args.treshold = 0.99
+    print_to_cpp(f"Args: {args}")
+    # TODO: tmp
     result: list[str] = []
     threads_to_use = max(1, cpu_count() - 1)
 

@@ -6,12 +6,10 @@ import sys
 import time
 from concurrent.futures import Future, ThreadPoolExecutor
 
-from base import (ArgsBase, file_format_img, parse_args, print_to_cpp,
-                  read_cv_file)
-from img2table.document import PDF, Image  # type: ignore
-from img2table.ocr import EasyOCR, PaddleOCR  # type: ignore
-from mytesseract import TesseractOCR
-from psutil import cpu_count  # type: ignore
+from base import (ArgsBase, file_format_img, parse_args, print_to_cpp, read_cv_file)
+from img2table.document import Image                                                                                    # type: ignore
+from img2table.ocr import EasyOCR                                                                                       # type: ignore
+from psutil import cpu_count                                                                                            # type: ignore
 
 
 class Args(ArgsBase):
@@ -38,15 +36,13 @@ ocr = EasyOCR()
 # ocr = PaddleOCR()
 
 
-def extract_from_img(img_path: os.DirEntry[str], save_path: str,
-                     min_confidence: int):
+def extract_from_img(img_path: os.DirEntry[str], save_path: str, min_confidence: int):
     print_to_cpp(f"Обрабатывается файл: {img_path.name}")
 
     img = Image(src=img_path.path)
 
     try:
-        img.to_xlsx(os.path.join(save_path,
-                                 f"{img_path.name.split('.')[0]}.xlsx"),
+        img.to_xlsx(os.path.join(save_path, f"{img_path.name.split('.')[0]}.xlsx"),
                     ocr=ocr,
                     borderless_tables=True,
                     min_confidence=min_confidence)
@@ -68,9 +64,9 @@ def extract_tables_to_xlsx(args: Args):
     with open(args.config_filename, encoding="utf-8") as conf_file:
         config = json.load(conf_file)
 
-    exclude_files: list[str] = [
-        file_format_img(x) for x in config["GeneratedCatalogExcludePages"]
-    ]
+    generated_catalog_exclude_pages = config.get("GeneratedCatalogExcludePages", [])
+
+    exclude_files: list[str] = [file_format_img(x) for x in generated_catalog_exclude_pages]
 
     os.makedirs(args.save_path, exist_ok=True)
 
@@ -94,15 +90,12 @@ def extract_tables_to_xlsx(args: Args):
                     print_to_cpp(f"Пропускается файл: {filename.name}")
                     continue
                 parsed_filenames.append(filename.name)
-                parsed_futures.append(
-                    e.submit(extract_from_img, filename, args.save_path,
-                             args.min_confidence))
+                parsed_futures.append(e.submit(extract_from_img, filename, args.save_path, args.min_confidence))
                 # if (not extract_from_img(filename, args.save_path, args.min_confidence)):
                 #     print_to_cpp(f"Не удалось обработать: {filename.name}")
                 #     result.append(filename.name.split(".")[0])
 
-    for i, (res_future,
-            res_filename) in enumerate(zip(parsed_futures, parsed_filenames)):
+    for i, (res_future, res_filename) in enumerate(zip(parsed_futures, parsed_filenames)):
         if not res_future.result():
             result.append(res_filename.split(".")[0])
 
@@ -111,6 +104,6 @@ def extract_tables_to_xlsx(args: Args):
 
 # python .\\extract_tables_to_xlsx.py C:/Coding/works/wbi/insearch_wbi/assets/projects/2023_08_15__18_31_58/cut_img/ C:/Coding/works/wbi/insearch_wbi/assets/projects/2023_08_15__18_31_58/xlsx_raw/ 6 0.png,1.png,102.png,2.png,3.png,4.png,5.png
 extract_tables_to_xlsx(parse_args(Args))
-# ! python .\\extract_tables_to_xlsx.py C:\\Coding\\works\\wbi\\ProjectsISC\\Amati_2023_10_30\\data\\catalog\\cut_img C:\\Coding\\works\\wbi\\ProjectsISC\\Amati_2023_10_30\\data\\catalog\\first_xlsx 6 none
+   # ! python .\\extract_tables_to_xlsx.py C:\\Coding\\works\\wbi\\ProjectsISC\\Amati_2023_10_30\\data\\catalog\\cut_img C:\\Coding\\works\\wbi\\ProjectsISC\\Amati_2023_10_30\\data\\catalog\\first_xlsx 6 none
 
-# ! python -O -OO .\\extract_tables_to_xlsx.py "C:\\Coding\\works\\wbi\\ProjectsISC\\data/catalog/cut_by_pattern_img/" "C:\\Coding\\works\\wbi\\ProjectsISC\\project.lmproj" "C:\\Coding\\works\\wbi\\ProjectsISC\\data/catalog/raw_xlsx/" "6"
+   # ! python -O -OO .\\extract_tables_to_xlsx.py "C:\\Coding\\works\\wbi\\ProjectsISC\\data/catalog/cut_by_pattern_img/" "C:\\Coding\\works\\wbi\\ProjectsISC\\project.lmproj" "C:\\Coding\\works\\wbi\\ProjectsISC\\data/catalog/raw_xlsx/" "6"

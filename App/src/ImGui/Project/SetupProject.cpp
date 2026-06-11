@@ -211,7 +211,7 @@ namespace LM
             if (!std::filesystem::exists(path))
             {
                 Overlay::Get()->Start(Format("Папка не найдена \nВозникла неизвестная ошибка \nПуть: {}",
-                                                path.make_preferred().string()));
+                                             path.make_preferred().string()));
             }
             else
             {
@@ -221,7 +221,6 @@ namespace LM
                 std::system((command.string() + " " + arg).c_str());
             }
         }
-
 
         static size_t filesCount = FileSystemUtils::FilesCountInDirectory(xlsxStartupPath);
         static std::vector<std::filesystem::path> paths;
@@ -434,7 +433,7 @@ namespace LM
         pythonCommand.AddArg(_Project->GetPdfTablesWithOcrTypeCutByPatternImgsPath());
         pythonCommand.AddArg(_Project->GetPdfTablesWithOcrTypeCutByPatternImgsPrevPath());
         pythonCommand.AddArg(_Project->GetCatalogSplitPages());
-        pythonCommand.AddArg("0.99");
+        pythonCommand.AddArg(0.99f);
 
         ScriptPopup::Get()->AddToQueue(pythonCommand, { "Обрезание картинок каталога",
                                                         []() {
