@@ -50,6 +50,15 @@ namespace LM
             });
         }
 
+        // result["global_calc_list"] = nlohmann::json::array();
+        for (const auto& [name, value] : m_GlobalCalcList)
+        {
+            result["global_calc_list"].push_back(nlohmann::json {
+                {  "name",  name },
+                { "value", value }
+            });
+        }
+
         for (const auto& [name, items] : m_SimpleAddList)
         {
             if (items.size() == 0)
@@ -231,6 +240,14 @@ namespace LM
                 for (const auto& item : json["global_add_list"])
                 {
                     m_GlobalAddList[item["name"]] = item["value"];
+                }
+            }
+
+            if (json.contains("global_calc_list"))
+            {
+                for (const auto& item : json["global_calc_list"])
+                {
+                    m_GlobalCalcList[item["name"]] = item["value"];
                 }
             }
 

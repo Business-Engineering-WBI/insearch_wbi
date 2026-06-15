@@ -80,6 +80,7 @@ namespace LM
     protected:
         void DrawTableActions(XlsxPageViewData& _XlsxViewData, XlsxPageViewDataTypes::TableData& _TableData);
         void DrawGlobalAddListWindow(XlsxPageViewData& _XlsxViewData);
+        void DrawGlobalCalcListWindow(XlsxPageViewData& _XlsxViewData);
         std::vector<std::string> GetSortedFieldNamesByHeaderAndColumnFill(XlsxPageViewData& _XlsxViewData) const;
 
         template <XlsxPageViewDataTypes::DerivedFromSimpleListItemBase T>

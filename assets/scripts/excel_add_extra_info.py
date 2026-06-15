@@ -29,6 +29,13 @@ class GlobalAddListObject(BaseModel):
     pos: int | None = None
 
 
+class GlobalCalcListObject(BaseModel):
+    name: str
+    value: str
+    ignore_warns: bool = False
+    pos: int | None = None
+
+
 class SimpleAddListValueObject(BaseModel):
     index: list[int]
     value: int | float | str | bool
@@ -75,6 +82,7 @@ class PerPageSimpleRuleImgListObject(BaseModel):
 
 class ExtraInfoRules(BaseModel):
     global_add_list: list[GlobalAddListObject] | None = None
+    global_calc_list: list[GlobalCalcListObject] | None = None
     simple_add_list: list[SimpleAddListObject] | None = None
     simple_rename_list: list[SimpleRenameListObject] | None = None
     constr_rename_list: dict[str, str] | None = None                                                                    # ConstrRenameList
@@ -107,10 +115,17 @@ def get_per_page_calc_list_result(index: int, df: pd.DataFrame, per_page_calc_li
     for val_obj in per_page_calc_list_item.values:
         if index in val_obj.index:
             for i in df.index:
-                exec(val_obj.exec, {"df": df, "i": i, "result": result})                                                # pylint: disable=exec-used
+                exec(val_obj.exec, {"df": df, "i": i, "result": result, "pd": pd})                                      # pylint: disable=exec-used
             return result
 
     return None
+
+
+def get_glob_calc_list_result(df: pd.DataFrame, glob_calc_list_item: GlobalCalcListObject):
+    result: list[None | int | float | str] = []
+    for i in df.index:
+        exec(glob_calc_list_item.value, {"df": df, "i": i, "result": result, "pd": pd})                                 # pylint: disable=exec-used
+    return result
 
 
 def get_per_page_simple_rule_img_list_result(index: int, df: pd.DataFrame,
@@ -178,6 +193,27 @@ def handle_glob_add_list(df: pd.DataFrame, page_id: int, global_add_list: list[G
         if pos is None:
             pos = glob_add_list_obj.pos if glob_add_list_obj.pos is not None else len(df.columns)
         df.insert(pos, glob_add_list_obj.name, to_add_value)
+
+
+def handle_glob_calc_list(df: pd.DataFrame, page_id: int, global_calc_list: list[GlobalCalcListObject] | None):
+    if global_calc_list is None:
+        return
+
+    for glob_calc_list_obj in global_calc_list:
+        to_add_value = get_glob_calc_list_result(df, glob_calc_list_obj)
+        if to_add_value is None:
+            log_warning_to_cpp(f"Для столбца '{glob_calc_list_obj.name}' на странице '{page_id}' не найдено значение")
+            continue
+
+        pos: None | int = None
+        if glob_calc_list_obj.name in df.columns:
+            # log_warning_to_cpp(f"Столбец '{glob_calc_list_obj.name}' уже есть на странице '{page_id}'")
+            pos = get_col_index(df, glob_calc_list_obj.name)
+            df.drop(glob_calc_list_obj.name, axis=1, inplace=True)
+
+        if pos is None:
+            pos = glob_calc_list_obj.pos if glob_calc_list_obj.pos is not None else len(df.columns)
+        df.insert(pos, glob_calc_list_obj.name, to_add_value)
 
 
 def handle_simple_add_list(df: pd.DataFrame, page_id: int, simple_add_list: list[SimpleAddListObject] | None):
@@ -318,6 +354,9 @@ def add_extra_info_single(xlsx_path: Path, page_id: int, save_path: str, extra_i
 
     df_remove_model_suffix(df)
     handle_glob_add_list(df, page_id, extra_info_rules.global_add_list)
+    df_remove_model_suffix(df)
+    handle_glob_calc_list(df, page_id, extra_info_rules.global_calc_list)
+
     df_remove_model_suffix(df)
     handle_simple_add_list(df, page_id, extra_info_rules.simple_add_list)
 

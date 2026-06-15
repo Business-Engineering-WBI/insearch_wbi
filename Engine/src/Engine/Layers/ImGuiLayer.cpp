@@ -261,7 +261,8 @@ namespace LM
                 std::filesystem::path(faFontsFolder) / std::filesystem::path(FONT_ICON_FILE_NAME_FAB);
             io.Fonts->AddFontFromFileTTF(fabPath.string().c_str(), fontSize, &config, iconRangesFab);
 
-            m_ConsolasFont = io.Fonts->AddFontFromFileTTF(regConsolas.c_str(), fontSize);
+            m_ConsolasFont = io.Fonts->AddFontFromFileTTF(regConsolas.c_str(), fontSize, nullptr,
+                                                          io.Fonts->GetGlyphRangesCyrillic());
 
             io.FontDefault = font;
 

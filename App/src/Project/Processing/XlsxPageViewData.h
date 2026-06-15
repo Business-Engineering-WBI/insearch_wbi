@@ -63,6 +63,7 @@ namespace LM
         typedef std::vector<std::vector<XlsxPageViewDataTypes::TableCell>> TableData;
 
         typedef std::unordered_map<std::string, std::string> GlobalAddList;
+        typedef std::unordered_map<std::string, std::string> GlobalCalcList;
         typedef std::unordered_map<std::string, std::vector<XlsxPageViewDataTypes::SimpleAddListItem>> SimpleAddList;
         typedef std::unordered_map<std::string, std::vector<XlsxPageViewDataTypes::SimpleAddListItem>> SimpleCalcList;
         typedef std::unordered_map<std::string, std::vector<XlsxPageViewDataTypes::PageImgListItem>> SimpleRuleImgList;
@@ -126,6 +127,7 @@ namespace LM
         const std::filesystem::path& GetExtraInfoJsonPath() const { return m_ExtraInfoJsonPath; }
 
         XlsxPageViewDataTypes::GlobalAddList& GetGlobalAddList() { return m_GlobalAddList; }
+        XlsxPageViewDataTypes::GlobalCalcList& GetGlobalCalcList() { return m_GlobalCalcList; }
         XlsxPageViewDataTypes::SimpleAddList& GetSimpleAddList() { return m_SimpleAddList; }
         XlsxPageViewDataTypes::SimpleCalcList& GetSimpleCalcList() { return m_SimpleCalcList; }
         XlsxPageViewDataTypes::SimpleRuleImgList& GetSimpleRuleImgList() { return m_SimpleRuleImgList; }
@@ -162,6 +164,11 @@ namespace LM
 
         bool IsItemInGlobalAddList(std::string_view _FieldName) { return m_GlobalAddList.contains(_FieldName.data()); }
 
+        bool IsItemInGlobalCalcList(std::string_view _FieldName)
+        {
+            return m_GlobalCalcList.contains(_FieldName.data());
+        }
+
         bool IsItemInSimpleAddListForCurrentPage(std::string_view _FieldName)
         {
             return IsItemInSimpleListForCurrentPage(m_SimpleAddList, _FieldName);
@@ -170,6 +177,12 @@ namespace LM
         bool IsItemInSimpleCalcListForCurrentPage(std::string_view _FieldName)
         {
             return IsItemInSimpleListForCurrentPage(m_SimpleCalcList, _FieldName);
+        }
+
+        bool IsItemInAnyListForCurrentPage(std::string_view _FieldName)
+        {
+            return IsItemInGlobalAddList(_FieldName) || IsItemInGlobalCalcList(_FieldName) ||
+                   IsItemInSimpleAddListForCurrentPage(_FieldName) || IsItemInSimpleCalcListForCurrentPage(_FieldName);
         }
 
     protected:
@@ -191,6 +204,7 @@ namespace LM
         std::optional<XlsxPageViewPageData> m_CurrentPageData;
 
         XlsxPageViewDataTypes::GlobalAddList m_GlobalAddList;
+        XlsxPageViewDataTypes::GlobalCalcList m_GlobalCalcList;
         XlsxPageViewDataTypes::SimpleAddList m_SimpleAddList;
         XlsxPageViewDataTypes::SimpleCalcList m_SimpleCalcList;
         XlsxPageViewDataTypes::SimpleRuleImgList m_SimpleRuleImgList;

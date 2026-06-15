@@ -291,6 +291,7 @@ namespace LM
         }
 
         DrawGlobalAddListWindow(xlsxViewData);
+        DrawGlobalCalcListWindow(xlsxViewData);
 
         DrawSimpleAddListWindow(xlsxViewData);
         DrawSimpleCalcListWindow(xlsxViewData);
@@ -356,6 +357,17 @@ namespace LM
 
         if (ImGui::BeginTable("XLSX Table", static_cast<int>(colsCount + 1), tableFlags))
         {
+            ImGuiIO& io = ImGui::GetIO();
+
+            if (ImGui::IsWindowHovered())
+            {
+                if (io.KeyShift && io.MouseWheel != 0.0f)
+                {
+                    float speed = 3.0f;
+                    ImGui::SetScrollX(ImGui::GetScrollX() - io.MouseWheel * speed * 100.0f);
+                }
+            }
+
             ImGui::TableSetupScrollFreeze(1, 1);
 
             ImGui::PushStyleVarY(ImGuiStyleVar_CellPadding, framePaddingY);
@@ -835,6 +847,118 @@ namespace LM
         ImGui::End();
     }
 
+    void XlsxPageView::DrawGlobalCalcListWindow(XlsxPageViewData& _XlsxViewData)
+    {
+        std::string windowName = "Глобальный список расчетов";
+        if (ImGui::Begin(windowName.c_str()))
+        {
+            std::string toDeleteName;
+
+            XlsxPageViewDataTypes::GlobalCalcList& globalCalcList = _XlsxViewData.GetGlobalCalcList();
+
+            for (auto& [globalCalcListFieldName, globalCalcListFieldValue] : globalCalcList)
+            {
+                ImGui::PushID(globalCalcListFieldName.c_str());
+                ImGui::Text("%s", globalCalcListFieldName.c_str());
+
+                if (IsExtraInfoAutoFocusField(windowName, globalCalcListFieldName))
+                {
+                    ImGui::SetKeyboardFocusHere();
+                }
+
+                const auto& style = ImGui::GetStyle();
+                float height = ImGui::GetTextLineHeight() *
+                                   static_cast<float>(std::ranges::count(globalCalcListFieldValue, '\n') + 1) +
+                               style.FramePadding.y * 2;
+                ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x - ImGui::CalcTextSize("X").x -
+                                        style.ItemSpacing.x - style.FramePadding.x * 2.0f);
+                bool isFontPushed = ImGuiLayer::Get()->PushConsolasFont();
+                ImGui::InputTextMultiline(std::format("##{}", globalCalcListFieldName).c_str(),
+                                          &globalCalcListFieldValue, { 0.0f, height });
+                if (isFontPushed)
+                {
+                    ImGui::PopFont();
+                }
+
+                if (ImGui::IsItemDeactivatedAfterEdit())
+                {
+                    _XlsxViewData.PushHistory();
+                    _XlsxViewData.SaveExtraInfoJson();
+                }
+
+                ImGui::SameLine();
+                if (DeleteButton())
+                {
+                    toDeleteName = globalCalcListFieldName;
+                }
+
+                ImGui::Spacing();
+                ImGui::PopID();
+            }
+
+            bool isFirstTimeOpened = false;
+            if (ImGui::Button("Добавить поле"))
+            {
+                ImGui::OpenPopup("Добавление поля##GlobalCalcList");
+                isFirstTimeOpened = true;
+            }
+
+            if (ImGui::BeginPopup("Добавление поля##GlobalCalcList"))
+            {
+                static ImGuiTextFilter fieldsFilter;
+                if (isFirstTimeOpened)
+                {
+                    ImGui::SetKeyboardFocusHere();
+                }
+                fieldsFilter.Draw("Фильтрация полей##GlobalCalcList");
+
+                ImGui::BeginChild("GlobalCalcListField", ImVec2(0.0f, ImGui::GetFontSize() * 24.0f),
+                                  ImGuiChildFlags_AutoResizeX | ImGuiChildFlags_NavFlattened);
+                for (const std::string& fieldName : GetSortedFieldNamesByHeaderAndColumnFill(_XlsxViewData))
+                {
+                    const FieldDescription& fieldDescr = m_FieldsDescription.at(fieldName);
+
+                    if (globalCalcList.contains(fieldName))
+                    {
+                        continue;
+                    }
+
+                    if (fieldsFilter.PassFilter(fieldDescr.Description.c_str()) ||
+                        fieldsFilter.PassFilter(fieldName.c_str()))
+                    {
+                        ImGui::PushID(fieldName.c_str());
+                        if (ImGui::Selectable(std::format("{}\n{}", fieldDescr.Description, fieldName).c_str(), false))
+                        {
+                            globalCalcList[fieldName] = "";
+                            m_ExtraInfoAutoFocusField = ExtraInfoAutoFocusField {
+                                .WindowName = windowName,
+                                .Field = fieldName,
+                            };
+                            fieldsFilter.Clear();
+                            ImGui::CloseCurrentPopup();
+                            _XlsxViewData.SaveExtraInfoJson();
+                        }
+                        ImGui::PopID();
+                        ImGui::Spacing();
+                    }
+                }
+                ImGui::EndChild();
+
+                if (ImGui::Button("Close"))
+                {
+                    ImGui::CloseCurrentPopup();
+                }
+                ImGui::EndPopup();
+            }
+
+            if (!toDeleteName.empty())
+            {
+                globalCalcList.erase(toDeleteName);
+            }
+        }
+        ImGui::End();
+    }
+
     template <XlsxPageViewDataTypes::DerivedFromSimpleListItemBase T>
     void XlsxPageView::DrawSimpleListTemplateWindow(std::string_view _WindowName, XlsxPageViewData& _XlsxViewData,
                                                     std::unordered_map<std::string, std::vector<T>>& _SimpleList,
@@ -1024,9 +1148,7 @@ namespace LM
 
             auto nonEmptyIt = headerHasNonEmptyValues.find(_FieldName);
             bool hasNonEmptyValue = (nonEmptyIt != headerHasNonEmptyValues.end()) && nonEmptyIt->second;
-            bool isFieldAlreadySetForPage = _XlsxViewData.IsItemInGlobalAddList(_FieldName) ||
-                                            _XlsxViewData.IsItemInSimpleAddListForCurrentPage(_FieldName) ||
-                                            _XlsxViewData.IsItemInSimpleCalcListForCurrentPage(_FieldName);
+            bool isFieldAlreadySetForPage = _XlsxViewData.IsItemInAnyListForCurrentPage(_FieldName);
 
             return (hasNonEmptyValue || isFieldAlreadySetForPage) ? 1 : 0;
         };
@@ -1647,8 +1769,7 @@ namespace LM
             auto& t = _TableData[0][colId].Value;
             // std::string headerText = std::format("{}##_Header_{}", t, colId + 1);
             ImU32 headerColor = 0xFF000000;
-            if (_XlsxViewData.IsItemInGlobalAddList(t) || _XlsxViewData.IsItemInSimpleAddListForCurrentPage(t) ||
-                _XlsxViewData.IsItemInSimpleCalcListForCurrentPage(t))
+            if (_XlsxViewData.IsItemInAnyListForCurrentPage(t))
             {
                 headerColor = 0xFF008000;
             }
