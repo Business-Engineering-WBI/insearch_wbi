@@ -79,17 +79,21 @@ def process_row(img_prefix: str, constr_to_lvl: dict[str, Yg1ShopConstructionLev
         match row["thft"]:
             case "M60":
                 lvl["l2"] = "Метчики метрические"
-            case "UNC60":
-                lvl["l2"] = "Дюймовые метчики"
-                lvl["l3"] = "Дюймовый UNC"
-            case "UNF60":
-                lvl["l2"] = "Дюймовые метчики"
-                lvl["l3"] = "Дюймовый UNF"
+            case "UN60":
+                match row["thrtyp"]:
+                    case "Coarse":
+                        lvl["l2"] = "Дюймовые метчики"
+                        lvl["l3"] = "Дюймовый UNC"
+                    case "Fine":
+                        lvl["l2"] = "Дюймовые метчики"
+                        lvl["l3"] = "Дюймовый UNF"
             case "NPT60":
                 lvl["l2"] = "Дюймовые метчики"
                 lvl["l3"] = "Дюймовый NPT"
+            case "WH55":
+                lvl["l2"] = "Резьба Витворта"
             case _:
-                raise ValueError("Need propper handling for ctd_jse_m for thft=" + str(row["thft"]))
+                raise ValueError("Need propper handling for ctd_jse_m/ctd_jfe_m for thft=" + str(row["thft"]))
 
     row[SECTION_1_FIELD] = lvl.get("l1")
     row[SECTION_2_FIELD] = lvl.get("l2")

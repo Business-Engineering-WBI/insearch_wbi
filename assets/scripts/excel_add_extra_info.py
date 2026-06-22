@@ -201,7 +201,7 @@ def handle_glob_calc_list(df: pd.DataFrame, page_id: int, global_calc_list: list
 
     for glob_calc_list_obj in global_calc_list:
         to_add_value = get_glob_calc_list_result(df, glob_calc_list_obj)
-        if to_add_value is None:
+        if to_add_value is None or len(to_add_value) == 0:
             log_warning_to_cpp(f"Для столбца '{glob_calc_list_obj.name}' на странице '{page_id}' не найдено значение")
             continue
 
@@ -222,7 +222,7 @@ def handle_simple_add_list(df: pd.DataFrame, page_id: int, simple_add_list: list
 
     for simple_add_list_obj in simple_add_list:
         to_add_value = get_simple_add_list(page_id, simple_add_list_obj.values)
-        if to_add_value is None:
+        if to_add_value is None or len(to_add_value) == 0:
             # if not simple_add_list_obj.ignore_warns:
             #     log_warning_to_cpp(f"Для столбца '{simple_add_list_obj.name}' на странице '{page_id}' не найдено значение")
             continue
@@ -315,6 +315,66 @@ def handle_per_page_simple_rule_img_list(df: pd.DataFrame, page_id: int, per_pag
                         df.at[i, "img_drw"] = get_img_with_prefix(img_drw, extra_parser_type)
 
 
+def normalize_and_validate_app_fields(df: pd.DataFrame, page_id: int):
+    allowed_order = "PMKNSHO"
+    allowed_set = set(allowed_order)
+    allowed_pos = {ch: i for i, ch in enumerate(allowed_order)}
+
+    for col in ["app1", "app2"]:
+        if col not in df.columns:
+            continue
+
+        for row_idx in df.index:
+            value = df.at[row_idx, col]
+            if pd.isna(value) or value is None:
+                continue
+
+            value_str = str(value).strip()
+            if value_str == "":
+                df.at[row_idx, col] = ""
+                continue
+
+            upper_value = value_str.upper()
+            invalid_chars = sorted(set(ch for ch in upper_value if ch not in allowed_set))
+            if invalid_chars:
+                raise ValueError(f"Недопустимые символы в поле '{col}' на странице '{page_id}', строка '{row_idx}': "
+                                 f"'{value_str}'. Допустимы только символы из '{allowed_order}'.")
+
+            normalized_value = "".join(sorted(upper_value, key=lambda ch: allowed_pos[ch]))
+            df.at[row_idx, col] = normalized_value
+
+    if "app1" in df.columns and "app2" in df.columns:
+        for row_idx in df.index:
+            app1_value = df.at[row_idx, "app1"]
+            app2_value = df.at[row_idx, "app2"]
+
+            if not pd.isna(app1_value) and not pd.isna(app2_value):
+                app1_set = set(str(app1_value))
+                app2_set = set(str(app2_value))
+                if app1_set & app2_set:
+                    raise ValueError(
+                        f"Пересечение символов между 'app1' и 'app2' в строке '{row_idx}' на странице '{page_id}'. "
+                        f"Значения: 'app1'='{app1_value}', 'app2'='{app2_value}'.")
+
+
+def normalize_string_cells_symbols(df: pd.DataFrame):
+    for col in df.columns:
+        if not (pd.api.types.is_string_dtype(df[col]) or df[col].dtype == object):
+            continue
+
+        def replace_symbols(value: object):
+            if isinstance(value, str):
+                return value.replace("…", "...").replace("–", "-")
+            return value
+
+        df[col] = df[col].map(replace_symbols)
+
+
+def run_post_transform_checks(df: pd.DataFrame, page_id: int):
+    normalize_string_cells_symbols(df)
+    normalize_and_validate_app_fields(df, page_id)
+
+
 # def select_img_folder_with_suffix(base_folder: str) -> str:
 #     for suffix in IMGS_FOLDER_SUFFIX_PRIORITY:
 #         candidate_folder = (base_folder.removesuffix("/") if base_folder.endswith("/") else base_folder) + suffix
@@ -373,6 +433,8 @@ def add_extra_info_single(xlsx_path: Path, page_id: int, save_path: str, extra_i
     handle_per_page_img_folder(df, xlsx_path.name, per_page_img_folder, extra_parser_type)
     handle_per_page_simple_rule_img_list(df, page_id, per_page_rule_img_folder, extra_parser_type,
                                          extra_info_rules.per_page_simple_rule_img_list)
+
+    run_post_transform_checks(df, page_id)
 
     # ! TODO: Add remove list
     # NOTE: Tmp remove list here:
