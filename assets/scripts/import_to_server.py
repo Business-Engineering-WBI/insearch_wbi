@@ -218,6 +218,7 @@ def process_files(args: Args):
 
             df = pd.read_excel(filename.path, dtype=dtype_dict)
             df["interpmodel"] = df["model"].map(interp_model).fillna(df["model"])
+            df = df.dropna(axis=1, how='all')
             for req_col in ["img_pic", "img_drw", "constr"]:
                 if req_col not in df.columns:
                     df[req_col] = pd.NA

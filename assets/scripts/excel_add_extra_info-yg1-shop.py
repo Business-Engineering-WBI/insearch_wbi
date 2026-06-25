@@ -74,7 +74,7 @@ def process_row(img_prefix: str, constr_to_lvl: dict[str, Yg1ShopConstructionLev
         log_error_to_cpp(f"Не найдена информация для конструкции {row['constr']}")
         sys.exit(-1)
 
-    if row["constr"] == "ctd_jse_m":
+    if row["constr"] in ["ctd_jse_m", "ctd_jse_hand_each", "ctd_jse_hand_set"]:
         lvl = copy.deepcopy(lvl)
         match row["thft"]:
             case "M60":
@@ -88,6 +88,9 @@ def process_row(img_prefix: str, constr_to_lvl: dict[str, Yg1ShopConstructionLev
                         lvl["l2"] = "Дюймовые метчики"
                         lvl["l3"] = "Дюймовый UNF"
             case "NPT60":
+                lvl["l2"] = "Дюймовые метчики"
+                lvl["l3"] = "Дюймовый NPT"
+            case "NPTF60":
                 lvl["l2"] = "Дюймовые метчики"
                 lvl["l3"] = "Дюймовый NPT"
             case "WH55":
