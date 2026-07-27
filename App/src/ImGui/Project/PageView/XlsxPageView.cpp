@@ -1316,7 +1316,32 @@ namespace LM
                 {
                     ImGui::PushID(v.ImgFilenameHash.c_str());
 
-                    ImGui::Text("Сравнение по: %s", v.Cmp.c_str());
+                    static constexpr std::array<std::string_view, 6> kCmpKeys = {
+                        "EQ", "NE", "LT", "LE", "GT", "GE",
+                    };
+
+                    if (v.Cmp.empty())
+                    {
+                        v.Cmp = "EQ";
+                    }
+
+                    if (ImGui::BeginCombo("Сравнение", v.Cmp.c_str()))
+                    {
+                        for (std::string_view cmpKey : kCmpKeys)
+                        {
+                            const bool isSelected = v.Cmp == cmpKey;
+                            if (ImGui::Selectable(cmpKey.data(), isSelected))
+                            {
+                                v.Cmp = cmpKey;
+                            }
+
+                            if (isSelected)
+                            {
+                                ImGui::SetItemDefaultFocus();
+                            }
+                        }
+                        ImGui::EndCombo();
+                    }
 
                     ImGui::SetNextItemWidth(ImGui::GetContentRegionAvail().x);
                     ImGui::InputText("##Value", &v.CmpValue);

@@ -128,6 +128,23 @@ def get_glob_calc_list_result(df: pd.DataFrame, glob_calc_list_item: GlobalCalcL
     return result
 
 
+def get_compare_func_by_key(cmp_key: str):
+    if cmp_key == "EQ":
+        return lambda a, b: a == b
+    if cmp_key == "NE":
+        return lambda a, b: a != b
+    if cmp_key == "LT":
+        return lambda a, b: a < b
+    if cmp_key == "LE":
+        return lambda a, b: a <= b
+    if cmp_key == "GT":
+        return lambda a, b: a > b
+    if cmp_key == "GE":
+        return lambda a, b: a >= b
+
+    raise ValueError(f"Unknown comparison key: {cmp_key}")
+
+
 def get_per_page_simple_rule_img_list_result(index: int, df: pd.DataFrame,
                                              per_page_simple_rule_img_list_item: PerPageSimpleRuleImgListObject):
 
@@ -137,7 +154,8 @@ def get_per_page_simple_rule_img_list_result(index: int, df: pd.DataFrame,
             for i in df.index:
                 res = None
                 for rule in val_obj.list:
-                    if df[per_page_simple_rule_img_list_item.name][i] == rule.cmp_value:
+                    cmp_func = get_compare_func_by_key(rule.cmp)
+                    if cmp_func(df[per_page_simple_rule_img_list_item.name][i], rule.cmp_value):
                         res = rule.img_filename_hash
                         break
                 result.append(res)

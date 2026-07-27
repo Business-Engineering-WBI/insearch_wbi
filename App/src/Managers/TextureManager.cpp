@@ -1,7 +1,5 @@
 #include "TextureManager.h"
 
-#include "Engine/Utils/Log.hpp"
-
 #include <filesystem>
 
 namespace LM
@@ -10,19 +8,19 @@ namespace LM
     static std::pair<std::string, std::string> SeparateFileName(const std::string_view _FileName)
     {
         std::filesystem::path filesystemFileName = std::filesystem::path(_FileName);
-        //LOG_CORE_WARN("filesystemFileName.parent_path: {}", filesystemFileName.parent_path());
-        //LOG_CORE_WARN("filesystemFileName.filename: {}", filesystemFileName.filename());
+        // LOG_CORE_WARN("filesystemFileName.parent_path: {}", filesystemFileName.parent_path());
+        // LOG_CORE_WARN("filesystemFileName.filename: {}", filesystemFileName.filename());
 
         return std::make_pair(filesystemFileName.parent_path().string(), filesystemFileName.filename().string());
     }
 
-    Ref<Texture2D> TextureManager::AddOrReplace(std::string_view _FileName)
+    Ref<Texture2D> TextureManager::AddOrReplace(std::string_view _FileName, Texture2D::MASK _Mask)
     {
-        //LOG_CORE_WARN("Add: {}", _FileName);
+        // LOG_CORE_WARN("Add: {}", _FileName);
 
         auto [folder, filename] = SeparateFileName(_FileName);
 
-        Ref<Texture2D> newTexture = Texture2D::Create(_FileName);
+        Ref<Texture2D> newTexture = Texture2D::Create(_FileName, _Mask);
         newTexture->OnAttach();
         m_Bank[folder][filename] = newTexture;
         return newTexture;
@@ -56,7 +54,7 @@ namespace LM
 
     Ref<Texture2D> TextureManager::Get(std::string_view _FileName)
     {
-        //LOG_CORE_WARN("Get: {}", _FileName);
+        // LOG_CORE_WARN("Get: {}", _FileName);
 
         auto [folder, filename] = SeparateFileName(_FileName);
 
