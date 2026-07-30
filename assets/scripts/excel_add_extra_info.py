@@ -155,7 +155,15 @@ def get_per_page_simple_rule_img_list_result(index: int, df: pd.DataFrame,
                 res = None
                 for rule in val_obj.list:
                     cmp_func = get_compare_func_by_key(rule.cmp)
-                    if cmp_func(df[per_page_simple_rule_img_list_item.name][i], rule.cmp_value):
+                    value_r = rule.cmp_value
+                    for t in [int, float]:
+                        try:
+                            value_r = t(rule.cmp_value)
+                            break
+                        except ValueError:
+                            continue
+                    value_l = type(value_r)(df[per_page_simple_rule_img_list_item.name][i])
+                    if cmp_func(value_l, value_r):
                         res = rule.img_filename_hash
                         break
                 result.append(res)

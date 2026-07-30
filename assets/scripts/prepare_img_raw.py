@@ -6,7 +6,7 @@ from pdf2image import convert_from_bytes, pdfinfo_from_bytes
 from PIL import Image
 from psutil import cpu_count                                                                                            # type: ignore
 
-PREV_MAX_SIZE = 3840, 2160
+PREV_MAX_SIZE = 3840 * 2, 2160 * 2
 
 
 class Args(ArgsBase):
@@ -54,7 +54,8 @@ def save_images(img: Image.Image, page_id: int, save_path: str, prev_save_path: 
     else:
         img.save(os.path.join(save_path, file_format_img(page_id)), "PNG")
 
-        img.thumbnail(PREV_MAX_SIZE, Image.Resampling.LANCZOS)
+        if img.size[0] > PREV_MAX_SIZE[0] or img.size[1] > PREV_MAX_SIZE[1]:
+            img.thumbnail(PREV_MAX_SIZE, Image.Resampling.LANCZOS)
         img.save(os.path.join(prev_save_path, file_format_img(page_id)), "PNG")
 
 

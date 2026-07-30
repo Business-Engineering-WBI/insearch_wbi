@@ -212,6 +212,8 @@ def process_files(args: Args):
         "cs1": str,
     }
 
+    total_count = 0
+
     for filename in os.scandir(args.xlsx_path):
         if filename.is_file() and not filename.name.startswith("~$") and filename.name not in skip_files:
             log_info_to_cpp(f"Импортируется файл: {filename.name}")
@@ -243,6 +245,7 @@ def process_files(args: Args):
 
                 log_trace_to_cpp("Вставка/обновление в gen_tools")
                 tool_id = insert_into_gen_tools(sqlalchemy_engine, row)
+                total_count += 1
 
                 if args.remove_previous_images:
                     log_trace_to_cpp("Удаление предыдущих изображений для инструмента")
@@ -274,13 +277,19 @@ def process_files(args: Args):
                                                         json_attributes=json_attributes)
 
                         log_trace_to_cpp(f"Вставка/обновление в {constr} таблицу")
-                        ctd_row = row.drop(
-                            ["codem", "moq", "fulldescription", "interpmodel", "img_pic", "img_drw", "constr"])
+                        ctd_row = row
+                        for col_name in [
+                                "codem", "moq", "fulldescription", "interpmodel", "img_pic", "img_drw", "constr"
+                        ]:
+                            if col_name in ctd_row:
+                                ctd_row = ctd_row.drop([col_name])
                         boolean_columns = boolean_columns_map.get(constr, set())
                         insert_into_ctd_table(connection, constr, ctd_row, tool_id, item_id, boolean_columns)
 
                 log_info_to_cpp(f"Импорт на сервер завершен успешно tool_id: {tool_id}, item_id: {item_id }")
                 log_space_to_cpp()
+
+    log_info_to_cpp(f"Всего импортировано инструментов: {total_count}")
 
 
 if __name__ == "__main__":
