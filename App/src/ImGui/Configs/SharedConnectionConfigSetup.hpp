@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Engine/Core/Assert.h"
+#include "Project/Project.h"
 
 #include <chrono>
 #include <filesystem>
@@ -41,7 +42,7 @@ namespace LM
         SharedConnectionConfigSetup();
         ~SharedConnectionConfigSetup();
 
-        void OnImGuiRender();
+        void OnImGuiRender(Ref<Project> _Project);
 
         void SaveConfig();
 

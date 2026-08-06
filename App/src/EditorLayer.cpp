@@ -289,7 +289,7 @@ namespace LM
 
         m_SetupProjectWindow.Draw(m_Project);
 
-        m_SharedConnectionConfigSetup.OnImGuiRender();
+        m_SharedConnectionConfigSetup.OnImGuiRender(m_Project);
         m_Yg1ShopConstructionLevelConfigSetup.OnImGuiRender();
 
         if (m_Project)

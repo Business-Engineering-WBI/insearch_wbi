@@ -521,7 +521,7 @@ namespace LM
                     }
                     if (ImGui::IsItemDeactivatedAfterEdit())
                     {
-                        xlsxViewData.PushHistory();
+                        PushHistory(xlsxViewData);
                     }
 
                     if (ImGui::IsItemFocused() && ImGui::IsKeyPressed(ImGuiKey_F2))
@@ -682,7 +682,7 @@ namespace LM
                 }
             }
 
-            _XlsxViewData.PushHistory();
+            PushHistory(_XlsxViewData);
         }
 
         ImGui::SameLine();
@@ -770,7 +770,7 @@ namespace LM
                 ImGui::InputText(std::format("##{}", globalAddListFieldName).c_str(), &globalAddListFieldValue);
                 if (ImGui::IsItemDeactivatedAfterEdit())
                 {
-                    _XlsxViewData.PushHistory();
+                    PushHistory(_XlsxViewData);
                     _XlsxViewData.SaveExtraInfoJson();
                 }
 
@@ -882,7 +882,7 @@ namespace LM
 
                 if (ImGui::IsItemDeactivatedAfterEdit())
                 {
-                    _XlsxViewData.PushHistory();
+                    PushHistory(_XlsxViewData);
                     _XlsxViewData.SaveExtraInfoJson();
                 }
 
@@ -990,7 +990,7 @@ namespace LM
                 _ItemInputHandle(simpleListFieldName, simpleListItem);
                 if (ImGui::IsItemDeactivatedAfterEdit())
                 {
-                    _XlsxViewData.PushHistory();
+                    PushHistory(_XlsxViewData);
                     _XlsxViewData.SaveExtraInfoJson();
                 }
 
@@ -1496,7 +1496,7 @@ namespace LM
                             }
                         }
 
-                        _XlsxViewData.PushHistory();
+                        PushHistory(_XlsxViewData);
                         m_IsJoinModalOpen = false;
                     }
                 }
@@ -1546,7 +1546,7 @@ namespace LM
                             }
                         }
 
-                        _XlsxViewData.PushHistory();
+                        PushHistory(_XlsxViewData);
                         m_IsFindAndReplaceModalOpen = false;
                     }
                 }
@@ -1596,10 +1596,12 @@ namespace LM
         if (ImGui::IsKeyPressed(ImGuiKey_Z) && io.KeyCtrl && !m_IsAnyCellActive)
         {
             _XlsxViewData.GetCurrentPageData().Undo();
+            m_Project->GetVariantExcelTables().SetIsAddExtraInfoNeedRebuild(true);
         }
         if (ImGui::IsKeyPressed(ImGuiKey_Y) && io.KeyCtrl && !m_IsAnyCellActive)
         {
             _XlsxViewData.GetCurrentPageData().Redo();
+            m_Project->GetVariantExcelTables().SetIsAddExtraInfoNeedRebuild(true);
         }
 
         if (ImGui::IsKeyPressed(ImGuiKey_J) && io.KeyCtrl)
@@ -1855,7 +1857,7 @@ namespace LM
                 ImGui::InputText("Имя заголовка##HeaderInput", &t);
                 if (ImGui::IsItemDeactivatedAfterEdit())
                 {
-                    _XlsxViewData.PushHistory();
+                    PushHistory(_XlsxViewData);
                     ImGui::CloseCurrentPopup();
                 }
                 if (ImGui::IsItemActive())
@@ -1909,7 +1911,7 @@ namespace LM
                         }
                     }
 
-                    _XlsxViewData.PushHistory();
+                    PushHistory(_XlsxViewData);
                 }
 
                 ImGui::SeparatorText("Checks");
@@ -1922,7 +1924,7 @@ namespace LM
                         _TableData[rowId][colId].Check = XlsxPageViewDataTypes::CheckStatus::kNone;
                     }
 
-                    _XlsxViewData.PushHistory();
+                    PushHistory(_XlsxViewData);
                 }
 
                 // TODO: Move to separate function
@@ -1944,7 +1946,7 @@ namespace LM
                         }
                     }
 
-                    _XlsxViewData.PushHistory();
+                    PushHistory(_XlsxViewData);
                 }
 
                 ImGui::SeparatorText("Actions");
@@ -2051,7 +2053,7 @@ namespace LM
                 _TableData.insert(_TableData.begin(), std::vector<XlsxPageViewDataTypes::TableCell>());
             }
             FixDimensions(_TableData);
-            _XlsxViewData.PushHistory();
+            PushHistory(_XlsxViewData);
         }
     }
 
@@ -2176,7 +2178,7 @@ namespace LM
                 }
             }
             FixDimensions(_TableData);
-            _XlsxViewData.PushHistory();
+            PushHistory(_XlsxViewData);
         }
     }
 
@@ -2195,7 +2197,7 @@ namespace LM
             }
         }
 
-        _XlsxViewData.PushHistory();
+        PushHistory(_XlsxViewData);
     }
 
     void XlsxPageView::DuplicateCellToColumn(XlsxPageViewData& _XlsxViewData,
@@ -2208,7 +2210,7 @@ namespace LM
                 _TableData[rowId][_Cell.x].Value = _TableData[_Cell.y][_Cell.x].Value;
             }
         }
-        _XlsxViewData.PushHistory();
+        PushHistory(_XlsxViewData);
     }
 
     void XlsxPageView::UnSelectAll(bool _UnSelectExtraCell)
@@ -2286,7 +2288,7 @@ namespace LM
             }
         }
 
-        _XlsxViewData.PushHistory();
+        PushHistory(_XlsxViewData);
     }
 
     void XlsxPageView::FixDimensions(XlsxPageViewDataTypes::TableData& _TableData)
@@ -2315,19 +2317,90 @@ namespace LM
             _TableData.push_back(std::vector<XlsxPageViewDataTypes::TableCell>());
         }
 
-        std::vector<XlsxPageViewDataTypes::TableCell>& headerRow = _TableData[0];
-        headerRow.clear();
+        XlsxPageViewDataTypes::TableData oldTableData = _TableData;
+        FixDimensions(oldTableData);
+
+        std::vector<std::string> targetHeaders;
+        targetHeaders.reserve(kProductBaseFields.size() + m_ConstructionsFields[_ConstrKey.data()].size());
         for (const std::string& field : kProductBaseFields)
         {
-            headerRow.push_back({ .Value = field });
+            targetHeaders.push_back(field);
         }
-        for (std::string& field : m_ConstructionsFields[_ConstrKey.data()])
+        for (const std::string& field : m_ConstructionsFields[_ConstrKey.data()])
         {
-            headerRow.push_back({ .Value = field });
+            targetHeaders.push_back(field);
         }
 
-        FixDimensions(_TableData);
-        _XlsxViewData.PushHistory();
+        const size_t rowsCount = oldTableData.size();
+        const size_t oldColsCount = oldTableData.empty() ? 0 : oldTableData[0].size();
+
+        std::vector<bool> oldColUsed(oldColsCount, false);
+        std::vector<size_t> mappedOldCols;
+        mappedOldCols.reserve(targetHeaders.size());
+
+        for (const std::string& header : targetHeaders)
+        {
+            size_t matchedCol = std::numeric_limits<size_t>::max();
+            for (size_t oldColId = 0; oldColId < oldColsCount; ++oldColId)
+            {
+                if (oldColUsed[oldColId])
+                {
+                    continue;
+                }
+
+                if (oldTableData[0][oldColId].Value == header)
+                {
+                    matchedCol = oldColId;
+                    oldColUsed[oldColId] = true;
+                    break;
+                }
+            }
+
+            mappedOldCols.push_back(matchedCol);
+        }
+
+        std::vector<size_t> unmatchedOldCols;
+        unmatchedOldCols.reserve(oldColsCount);
+        for (size_t oldColId = 0; oldColId < oldColsCount; ++oldColId)
+        {
+            if (!oldColUsed[oldColId])
+            {
+                unmatchedOldCols.push_back(oldColId);
+            }
+        }
+
+        const size_t totalColsCount = targetHeaders.size() + unmatchedOldCols.size();
+        _TableData.assign(rowsCount, std::vector<XlsxPageViewDataTypes::TableCell>(totalColsCount, { .Value = "" }));
+
+        for (size_t colId = 0; colId < targetHeaders.size(); ++colId)
+        {
+            _TableData[0][colId].Value = targetHeaders[colId];
+
+            const size_t oldColId = mappedOldCols[colId];
+            if (oldColId == std::numeric_limits<size_t>::max())
+            {
+                continue;
+            }
+
+            for (size_t rowId = 1; rowId < rowsCount; ++rowId)
+            {
+                _TableData[rowId][colId] = oldTableData[rowId][oldColId];
+            }
+        }
+
+        for (size_t i = 0; i < unmatchedOldCols.size(); ++i)
+        {
+            const size_t newColId = targetHeaders.size() + i;
+            const size_t oldColId = unmatchedOldCols[i];
+
+            _TableData[0][newColId].Value = oldTableData[0][oldColId].Value;
+            for (size_t rowId = 1; rowId < rowsCount; ++rowId)
+            {
+                _TableData[rowId][newColId] = oldTableData[rowId][oldColId];
+            }
+        }
+
+        PushHistory(_XlsxViewData);
     }
 
     void XlsxPageView::LoadConstructionsTree()
@@ -2603,7 +2676,7 @@ namespace LM
             }
         }
 
-        _XlsxViewData.PushHistory();
+        PushHistory(_XlsxViewData);
     }
 
     bool XlsxPageView::IsExtraInfoAutoFocusField(std::string_view _WindowName, std::string_view _FieldName)
@@ -3013,6 +3086,15 @@ namespace LM
                   ImGui::Text("После его завершения можно закрыть это окно");
               },
               [this](int) { m_Project->GetVariantExcelTables().SetIsGenerateYg1ShopCombinedXlsxNeedRebuild(false); } });
+    }
+
+    void XlsxPageView::PushHistory(XlsxPageViewData& _XlsxViewData)
+    {
+        if (_XlsxViewData.IsPageLoaded(_XlsxViewData.GetCurrentPageId()))
+        {
+            _XlsxViewData.PushHistory();
+            m_Project->GetVariantExcelTables().SetIsAddExtraInfoNeedRebuild(true);
+        }
     }
 
 }    // namespace LM

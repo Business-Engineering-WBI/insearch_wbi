@@ -172,6 +172,8 @@ namespace LM
 
         void GenerateYg1ShopCombinedXlsx(bool _IsNeedRunWithoutCheckIsDone = true);
 
+        void PushHistory(XlsxPageViewData& _XlsxViewData);
+
     protected:
         bool m_IsMainWindowFocused = false;
         bool m_IsAnyCellActive = false;

@@ -237,7 +237,7 @@ def process_files(args: Args):
                     boolean_columns_map[constr] = get_boolean_columns(sqlalchemy_engine, constr)
 
             for _, row in df.iterrows():
-                log_info_to_cpp(f"Обрабатывается строка: {row['manuf']} - {row['model']}")
+                log_info_to_cpp(f"Обрабатывается строка: {filename.name}.   {row['manuf']} - {row['model']}")
                 constr = row["constr"]
                 displayfields = displayfields_map.get(constr)
                 if (displayfields is None or len(displayfields) == 0) and constr is not None:
