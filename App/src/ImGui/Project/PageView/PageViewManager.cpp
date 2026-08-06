@@ -110,6 +110,29 @@ namespace LM
 
     Ref<PageViewManager> PageViewManager::GetCurrent() { return s_Managers[s_CurrentManagerHash]; }
 
+    void PageViewManager::TrySetPageId(int _NewPageId)
+    {
+        const int filesCount = GetPagesCountByManager(m_Project, s_CurrentManagerHash);
+        const int maxPageId = glm::max(filesCount - 1, 0);
+
+        _NewPageId = glm::clamp(_NewPageId, 0, maxPageId);
+
+        if (_NewPageId != m_PageId)
+        {
+            bool isCanChangePage = true;
+            for (auto& view : m_Views)
+            {
+                // TODO: Add handle for cases, where page can't be changed (overlay or window with error in front)
+                isCanChangePage = isCanChangePage && view->OnPageWillBeChanged(m_PageId, _NewPageId);
+            }
+
+            if (isCanChangePage)
+            {
+                m_PageId = _NewPageId;
+            }
+        }
+    }
+
     void PageViewManager::DrawMenuItem() { }
 
     void PageViewManager::DrawViewTopMenu()
@@ -164,22 +187,7 @@ namespace LM
         }
         ImGui::PopStyleVar();
 
-        newPageId = glm::clamp(newPageId, 0, maxPageId);
-
-        if (newPageId != m_PageId)
-        {
-            bool isCanChangePage = true;
-            for (auto& view : m_Views)
-            {
-                // TODO: Add handle for cases, where page can't be changed (overlay or window with error in front)
-                isCanChangePage = isCanChangePage && view->OnPageWillBeChanged(m_PageId, newPageId);
-            }
-
-            if (isCanChangePage)
-            {
-                m_PageId = newPageId;
-            }
-        }
+        TrySetPageId(newPageId);
 
         ImGui::PopStyleVar();
     }
@@ -204,6 +212,10 @@ namespace LM
 
         m_Project = Project::s_ProjectNotOpen;
     }
+
+    void PageViewManager::GoToPrevPage() { TrySetPageId(m_PageId - 1); }
+
+    void PageViewManager::GoToNextPage() { TrySetPageId(m_PageId + 1); }
 
     int PageViewManager::SetPage(int _PageId)
     {

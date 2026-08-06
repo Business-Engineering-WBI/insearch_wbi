@@ -9,6 +9,7 @@
 #include "ImGui/Overlays/Overlay.h"
 #include "ImGui/Overlays/ScriptPopup.h"
 #include "Managers/TextureManager.h"
+#include "PageViewManager.h"
 #include "Project/Processing/XlsxPageViewData.h"
 #include "Project/ProjectVariantExcelTables.hpp"
 #include "Python/PythonCommand.h"
@@ -123,6 +124,8 @@ namespace LM
     constexpr std::string_view kDefaultAmatiCodemsFile = "assets/data/amati_codem.xlsx";
 
     const std::vector<std::string> kProductBaseFields = { "fulldescription", "lcs", "moq", "codem" };
+    const std::vector<std::string> kKnownTailFields = { "pricevalue", "pricecurrency", "pricevalue_rub",
+                                                        "constr",     "img_pic",       "img_drw" };
     const std::vector<std::string> kImgFileTypeList = { "pic", "drw" };
 
     const std::array kInterpModelSuffixesToRemove = { "_AMATI"sv, "_ASKUP"sv, "_DEREK"sv, "_HT"sv,
@@ -1593,6 +1596,31 @@ namespace LM
             return;
         }
 
+        // if (ImGui::IsKeyPressed(ImGuiKey_A) && io.KeyCtrl && !m_IsAnyCellActive)
+        // {
+        //     SelectAll(_TableData);
+        //     return;
+        // }
+
+        if (ImGui::IsKeyPressed(ImGuiKey_RightArrow) && io.KeyCtrl && io.KeyAlt)
+        {
+            if (m_IsAnyCellActive)
+            {
+                ImGui::ClearActiveID();
+            }
+            PageViewManager::GetCurrent()->GoToNextPage();
+            return;
+        }
+        if (ImGui::IsKeyPressed(ImGuiKey_LeftArrow) && io.KeyCtrl && io.KeyAlt)
+        {
+            if (m_IsAnyCellActive)
+            {
+                ImGui::ClearActiveID();
+            }
+            PageViewManager::GetCurrent()->GoToPrevPage();
+            return;
+        }
+
         if (ImGui::IsKeyPressed(ImGuiKey_Z) && io.KeyCtrl && !m_IsAnyCellActive)
         {
             _XlsxViewData.GetCurrentPageData().Undo();
@@ -2369,7 +2397,47 @@ namespace LM
             }
         }
 
-        const size_t totalColsCount = targetHeaders.size() + unmatchedOldCols.size();
+        std::vector<size_t> knownTailUnmatchedOldCols;
+        knownTailUnmatchedOldCols.reserve(kKnownTailFields.size());
+        for (const std::string& knownTailField : kKnownTailFields)
+        {
+            for (size_t oldColId : unmatchedOldCols)
+            {
+                if (oldTableData[0][oldColId].Value == knownTailField)
+                {
+                    knownTailUnmatchedOldCols.push_back(oldColId);
+                    break;
+                }
+            }
+        }
+
+        std::vector<size_t> unknownUnmatchedOldCols;
+        unknownUnmatchedOldCols.reserve(unmatchedOldCols.size());
+        for (size_t oldColId : unmatchedOldCols)
+        {
+            bool isKnownTailField = false;
+            for (size_t knownOldColId : knownTailUnmatchedOldCols)
+            {
+                if (knownOldColId == oldColId)
+                {
+                    isKnownTailField = true;
+                    break;
+                }
+            }
+            if (!isKnownTailField)
+            {
+                unknownUnmatchedOldCols.push_back(oldColId);
+            }
+        }
+
+        std::vector<size_t> finalUnmatchedOldCols;
+        finalUnmatchedOldCols.reserve(unmatchedOldCols.size());
+        finalUnmatchedOldCols.insert(finalUnmatchedOldCols.end(), knownTailUnmatchedOldCols.begin(),
+                                     knownTailUnmatchedOldCols.end());
+        finalUnmatchedOldCols.insert(finalUnmatchedOldCols.end(), unknownUnmatchedOldCols.begin(),
+                                     unknownUnmatchedOldCols.end());
+
+        const size_t totalColsCount = targetHeaders.size() + finalUnmatchedOldCols.size();
         _TableData.assign(rowsCount, std::vector<XlsxPageViewDataTypes::TableCell>(totalColsCount, { .Value = "" }));
 
         for (size_t colId = 0; colId < targetHeaders.size(); ++colId)
@@ -2388,10 +2456,10 @@ namespace LM
             }
         }
 
-        for (size_t i = 0; i < unmatchedOldCols.size(); ++i)
+        for (size_t i = 0; i < finalUnmatchedOldCols.size(); ++i)
         {
             const size_t newColId = targetHeaders.size() + i;
-            const size_t oldColId = unmatchedOldCols[i];
+            const size_t oldColId = finalUnmatchedOldCols[i];
 
             _TableData[0][newColId].Value = oldTableData[0][oldColId].Value;
             for (size_t rowId = 1; rowId < rowsCount; ++rowId)

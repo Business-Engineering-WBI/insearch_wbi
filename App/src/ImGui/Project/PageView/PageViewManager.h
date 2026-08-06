@@ -28,9 +28,14 @@ namespace LM
         static Ref<PageViewManager> GetExcelFolder();
         static Ref<PageViewManager> GetCurrent();
 
+        void TrySetPageId(int _NewPageId);
+
         void DrawMenuItem();
         void DrawViewTopMenu();
         void DrawViews(Ref<Project> _Project);
+
+        void GoToPrevPage();
+        void GoToNextPage();
 
         int SetPage(int _PageId);
 
