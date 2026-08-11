@@ -30,7 +30,10 @@ namespace LM
             if (now - m_LastChangeTime >= kSaveDebounceDelay)
             {
                 SaveConfig();
-                _Project->GetVariantExcelTables().SetIsUploadImagesAndPrepareXlsxForWbiToolsNeedRebuild(true);
+                if (_Project)
+                {
+                    _Project->GetVariantExcelTables().SetIsUploadImagesAndPrepareXlsxForWbiToolsNeedRebuild(true);
+                }
                 m_HasChanges = false;
             }
         }

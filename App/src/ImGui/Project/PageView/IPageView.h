@@ -43,6 +43,8 @@ namespace LM
         // TODO: as std::filesystem::path
         std::string m_BasePath;
 
+        bool m_IsDisableNextFrameInputEvents = false;
+
         const float kLineThickness = 2.0f;
     };
 

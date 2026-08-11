@@ -252,9 +252,48 @@ namespace LM
 
     std::string XlsxPageView::GetFileName() const { return FileFormat::FormatXlsx(m_PageId); }
 
+    void XlsxPageView::Draw()
+    {
+        if (m_PageId != -1 && m_Project)
+        {
+            HandleAnyRelatedWindowsImGuiEvents();
+
+            XlsxPageViewData& xlsxViewData = m_Project->GetXlsxPageViewData();
+            if (xlsxViewData.IsPageLoaded(m_PageId))
+            {
+                XlsxPageViewPageData& pageData = xlsxViewData.GetCurrentPageData();
+                XlsxPageViewDataTypes::TableData& tableData = pageData.GetTableData();
+
+                HandleImGuiEvents(xlsxViewData, tableData);
+            }
+        }
+
+        ImGuiWindowFlags windowFlags = ImGuiWindowFlags_None;
+        if (m_IsDisableNextFrameInputEvents)
+        {
+            LOG_CORE_INFO("Disable next frame input events");
+            windowFlags |= ImGuiWindowFlags_NoInputs;
+        }
+
+        m_IsAnyOtherRelatedWindowFocused = false;
+
+        if (ImGui::Begin(GetWindowName(), nullptr, windowFlags))
+        {
+            PageViewManager::GetCurrent()->DrawViewTopMenu();
+            DrawTopMenuExtras();
+
+            DrawWindowContent();
+
+            DrawExtras();
+        }
+        ImGui::End();
+    }
+
     void XlsxPageView::DrawWindowContent()
     {
         m_IsMainWindowFocused = ImGui::IsWindowFocused();
+        m_IsMainWindowAndChildFocused = ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
+
         if (m_PageId == -1 || !m_Project)
         {
             return;
@@ -284,7 +323,7 @@ namespace LM
             m_IsAnyCellActive = true;
         }
 
-        HandleImGuiEvents(xlsxViewData, tableData);
+        // HandleImGuiEvents(xlsxViewData, tableData);
         // DrawTableActions();
 
         size_t colsCount = 0;
@@ -358,6 +397,10 @@ namespace LM
 
         ImGui::PushStyleVar(ImGuiStyleVar_CellPadding, { 0.0f, 0.0f });
 
+        if (m_IsDisableNextFrameInputEvents)
+        {
+            ImGui::BeginDisabled();
+        }
         if (ImGui::BeginTable("XLSX Table", static_cast<int>(colsCount + 1), tableFlags))
         {
             ImGuiIO& io = ImGui::GetIO();
@@ -572,6 +615,11 @@ namespace LM
             }
             ImGui::EndTable();
         }
+        if (m_IsDisableNextFrameInputEvents)
+        {
+            ImGui::EndDisabled();
+            m_IsDisableNextFrameInputEvents = false;
+        }
         ImGui::PopStyleVar();
 
         if (m_DeleteCol.has_value())
@@ -754,6 +802,8 @@ namespace LM
         std::string windowName = "Глобальный список заполнения";
         if (ImGui::Begin(windowName.c_str()))
         {
+            m_IsAnyOtherRelatedWindowFocused |= ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
+
             std::string toDeleteName;
 
             XlsxPageViewDataTypes::GlobalAddList& globalAddList = _XlsxViewData.GetGlobalAddList();
@@ -788,6 +838,7 @@ namespace LM
             }
 
             bool isFirstTimeOpened = false;
+            static bool isShouldSaveInput = false;
             if (ImGui::Button("Добавить поле"))
             {
                 ImGui::OpenPopup("Добавление поля##GlobalAddList");
@@ -825,7 +876,10 @@ namespace LM
                                 .WindowName = windowName,
                                 .Field = fieldName,
                             };
-                            fieldsFilter.Clear();
+                            if (!isShouldSaveInput)
+                            {
+                                fieldsFilter.Clear();
+                            }
                             ImGui::CloseCurrentPopup();
                             _XlsxViewData.SaveExtraInfoJson();
                         }
@@ -839,6 +893,9 @@ namespace LM
                 {
                     ImGui::CloseCurrentPopup();
                 }
+                ImGui::SameLine();
+                ImGui::Checkbox("Сохранять ввод", &isShouldSaveInput);
+
                 ImGui::EndPopup();
             }
 
@@ -855,6 +912,8 @@ namespace LM
         std::string windowName = "Глобальный список расчетов";
         if (ImGui::Begin(windowName.c_str()))
         {
+            m_IsAnyOtherRelatedWindowFocused |= ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
+
             std::string toDeleteName;
 
             XlsxPageViewDataTypes::GlobalCalcList& globalCalcList = _XlsxViewData.GetGlobalCalcList();
@@ -900,6 +959,7 @@ namespace LM
             }
 
             bool isFirstTimeOpened = false;
+            static bool isShouldSaveInput = false;
             if (ImGui::Button("Добавить поле"))
             {
                 ImGui::OpenPopup("Добавление поля##GlobalCalcList");
@@ -937,7 +997,10 @@ namespace LM
                                 .WindowName = windowName,
                                 .Field = fieldName,
                             };
-                            fieldsFilter.Clear();
+                            if (!isShouldSaveInput)
+                            {
+                                fieldsFilter.Clear();
+                            }
                             ImGui::CloseCurrentPopup();
                             _XlsxViewData.SaveExtraInfoJson();
                         }
@@ -951,6 +1014,9 @@ namespace LM
                 {
                     ImGui::CloseCurrentPopup();
                 }
+                ImGui::SameLine();
+                ImGui::Checkbox("Сохранять ввод", &isShouldSaveInput);
+
                 ImGui::EndPopup();
             }
 
@@ -968,6 +1034,8 @@ namespace LM
                                                     std::function<void(std::string_view, T&)> _ItemInputHandle,
                                                     std::function<std::string(const T&)> _ItemPreviewTextFn)
     {
+        m_IsAnyOtherRelatedWindowFocused |= ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
+
         std::string toDeleteName;
 
         for (auto& [simpleListFieldName, simpleListPages] : _SimpleList)
@@ -1013,6 +1081,7 @@ namespace LM
         std::string popupName = std::format("Добавление поля##{}", _WindowName);
 
         bool isFirstTimeOpened = false;
+        static bool isShouldSaveInput = false;
         if (ImGui::Button("Добавить поле"))
         {
             ImGui::OpenPopup(popupName.c_str());
@@ -1051,7 +1120,10 @@ namespace LM
                             .WindowName = _WindowName.data(),
                             .Field = fieldName,
                         };
-                        fieldsFilter.Clear();
+                        if (!isShouldSaveInput)
+                        {
+                            fieldsFilter.Clear();
+                        }
                         ImGui::CloseCurrentPopup();
                         _XlsxViewData.SaveExtraInfoJson();
                     }
@@ -1094,6 +1166,9 @@ namespace LM
             {
                 ImGui::CloseCurrentPopup();
             }
+            ImGui::SameLine();
+            ImGui::Checkbox("Сохранять ввод", &isShouldSaveInput);
+
             ImGui::EndPopup();
         }
 
@@ -1397,6 +1472,8 @@ namespace LM
         // TODO: Implement Buttons
         if (ImGui::Begin("Картинки для страницы"))
         {
+            m_IsAnyOtherRelatedWindowFocused |= ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows);
+
             ImGui::Button("Обновить все");
             for (std::string_view filetype : kImgFileTypeList)
             {
@@ -1558,9 +1635,50 @@ namespace LM
         }
     }
 
+    void XlsxPageView::HandleAnyRelatedWindowsImGuiEvents()
+    {
+        if (!m_IsAnyOtherRelatedWindowFocused && !m_IsMainWindowAndChildFocused)
+        {
+            return;
+        }
+
+        ImGuiIO& io = ImGui::GetIO();
+
+        if (ImGui::IsKeyPressed(ImGuiKey_Escape) && !m_IsAnyCellActive)
+        {
+            LOG_CORE_INFO("Escape key pressed");
+            ImGui::ClearActiveID();
+            ImGui::SetNavID(0, ImGuiNavLayer_Main, 0, {});
+            ImGui::SetWindowFocus(GetWindowName());
+            UnSelectAll();
+            return;
+        }
+
+        if (ImGui::IsKeyPressed(ImGuiKey_RightArrow) && io.KeyCtrl && io.KeyAlt)
+        {
+            ImGui::ClearActiveID();
+            // ImGui::SetNavID(0, ImGuiNavLayer_Main, 0, {});
+            // ImGui::SetWindowFocus(GetWindowName());
+            // UnSelectAll();
+            m_IsDisableNextFrameInputEvents = true;
+            PageViewManager::GetCurrent()->GoToNextPage();
+            return;
+        }
+        if (ImGui::IsKeyPressed(ImGuiKey_LeftArrow) && io.KeyCtrl && io.KeyAlt)
+        {
+            ImGui::ClearActiveID();
+            m_IsDisableNextFrameInputEvents = true;
+            // ImGui::SetNavID(0, ImGuiNavLayer_Main, 0, {});
+            // ImGui::SetWindowFocus(GetWindowName());
+            // UnSelectAll();
+            PageViewManager::GetCurrent()->GoToPrevPage();
+            return;
+        }
+    }
+
     void XlsxPageView::HandleImGuiEvents(XlsxPageViewData& _XlsxViewData, XlsxPageViewDataTypes::TableData& _TableData)
     {
-        if (!ImGui::IsWindowFocused(ImGuiFocusedFlags_RootAndChildWindows) || _TableData.empty())
+        if (!m_IsMainWindowAndChildFocused || _TableData.empty())
         {
             return;
         }
@@ -1586,40 +1704,11 @@ namespace LM
             }
         }
 
-        if (ImGui::IsKeyPressed(ImGuiKey_Escape) && !m_IsAnyCellActive)
-        {
-            LOG_CORE_INFO("Escape key pressed");
-            ImGui::ClearActiveID();
-            ImGui::SetNavID(0, ImGuiNavLayer_Main, 0, {});
-            ImGui::SetWindowFocus(GetWindowName());
-            UnSelectAll();
-            return;
-        }
-
         // if (ImGui::IsKeyPressed(ImGuiKey_A) && io.KeyCtrl && !m_IsAnyCellActive)
         // {
         //     SelectAll(_TableData);
         //     return;
         // }
-
-        if (ImGui::IsKeyPressed(ImGuiKey_RightArrow) && io.KeyCtrl && io.KeyAlt)
-        {
-            if (m_IsAnyCellActive)
-            {
-                ImGui::ClearActiveID();
-            }
-            PageViewManager::GetCurrent()->GoToNextPage();
-            return;
-        }
-        if (ImGui::IsKeyPressed(ImGuiKey_LeftArrow) && io.KeyCtrl && io.KeyAlt)
-        {
-            if (m_IsAnyCellActive)
-            {
-                ImGui::ClearActiveID();
-            }
-            PageViewManager::GetCurrent()->GoToPrevPage();
-            return;
-        }
 
         if (ImGui::IsKeyPressed(ImGuiKey_Z) && io.KeyCtrl && !m_IsAnyCellActive)
         {
@@ -1640,6 +1729,12 @@ namespace LM
         if (ImGui::IsKeyPressed(ImGuiKey_F) && io.KeyCtrl)
         {
             m_IsFindAndReplaceModalOpen = true;
+        }
+
+        if (ImGui::IsKeyPressed(ImGuiKey_K) && io.KeyCtrl && io.KeyAlt && io.KeyShift && !m_IsAnyCellActive)
+        {
+            DeleteUnknownColumnsForConstruction(_XlsxViewData, _TableData);
+            return;
         }
 
         // TODO: Add range for Key_X and Key_C
@@ -2465,6 +2560,72 @@ namespace LM
             for (size_t rowId = 1; rowId < rowsCount; ++rowId)
             {
                 _TableData[rowId][newColId] = oldTableData[rowId][oldColId];
+            }
+        }
+
+        PushHistory(_XlsxViewData);
+    }
+
+    void XlsxPageView::DeleteUnknownColumnsForConstruction(XlsxPageViewData& _XlsxViewData,
+                                                           XlsxPageViewDataTypes::TableData& _TableData)
+    {
+        if ((_TableData.size() < 2) || _TableData[0].empty())
+        {
+            return;
+        }
+
+        const auto& headerRow = _TableData[0];
+        auto constrHeaderIt = std::ranges::find_if(
+            headerRow, [](const XlsxPageViewDataTypes::TableCell& _Cell) { return _Cell.Value == "constr"; });
+        if (constrHeaderIt == headerRow.end())
+        {
+            return;
+        }
+
+        const size_t constrColId = static_cast<size_t>(std::distance(headerRow.begin(), constrHeaderIt));
+        if (constrColId >= _TableData[1].size())
+        {
+            return;
+        }
+
+        const std::string& constrKey = _TableData[1][constrColId].Value;
+        if (constrKey.empty() || !m_ConstructionsFields.contains(constrKey))
+        {
+            return;
+        }
+
+        const std::vector<std::string>& constructionFields = m_ConstructionsFields.at(constrKey);
+
+        auto isKnownField = [&constructionFields](std::string_view _FieldName) {
+            return (std::ranges::find(kProductBaseFields, _FieldName) != kProductBaseFields.end()) ||
+                   (std::ranges::find(kKnownTailFields, _FieldName) != kKnownTailFields.end()) ||
+                   (std::ranges::find(constructionFields, _FieldName) != constructionFields.end());
+        };
+
+        std::vector<size_t> colsToDelete;
+        colsToDelete.reserve(headerRow.size());
+        for (size_t colId = 0; colId < headerRow.size(); ++colId)
+        {
+            if (!isKnownField(headerRow[colId].Value))
+            {
+                colsToDelete.push_back(colId);
+            }
+        }
+
+        if (colsToDelete.empty())
+        {
+            return;
+        }
+
+        for (auto& row : _TableData)
+        {
+            for (auto it = colsToDelete.rbegin(); it != colsToDelete.rend(); ++it)
+            {
+                if (*it < row.size())
+                {
+                    row.erase(row.begin() +
+                              static_cast<std::vector<XlsxPageViewDataTypes::TableCell>::difference_type>(*it));
+                }
             }
         }
 

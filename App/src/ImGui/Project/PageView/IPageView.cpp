@@ -1,5 +1,6 @@
 #include "IPageView.h"
 
+#include "Engine/Utils/Log.hpp"
 #include "PageViewManager.h"
 
 #include <imgui.h>
@@ -11,7 +12,15 @@ namespace LM
 
     void IPageView::Draw()
     {
-        if (ImGui::Begin(GetWindowName()))
+        ImGuiWindowFlags windowFlags = ImGuiWindowFlags_None;
+        if (m_IsDisableNextFrameInputEvents)
+        {
+            LOG_CORE_INFO("Disable next frame input events");
+            windowFlags |= ImGuiWindowFlags_NoInputs;
+            m_IsDisableNextFrameInputEvents = false;
+        }
+
+        if (ImGui::Begin(GetWindowName(), nullptr, windowFlags))
         {
             PageViewManager::GetCurrent()->DrawViewTopMenu();
             DrawTopMenuExtras();

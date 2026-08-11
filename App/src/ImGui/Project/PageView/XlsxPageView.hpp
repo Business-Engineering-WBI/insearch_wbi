@@ -74,6 +74,8 @@ namespace LM
         virtual const char* GetWindowName() const override { return "Первый Excel"; }
         std::string GetFileName() const override;
 
+        virtual void Draw() override;
+
         void DrawWindowContent() override;
         void DrawOtherWindows() override;
 
@@ -101,6 +103,7 @@ namespace LM
         void DrawJoinModal(XlsxPageViewData& _XlsxViewData, XlsxPageViewDataTypes::TableData& _TableData);
         void DrawFindAndReplaceModal(XlsxPageViewData& _XlsxViewData, XlsxPageViewDataTypes::TableData& _TableData);
 
+        void HandleAnyRelatedWindowsImGuiEvents();
         void HandleImGuiEvents(XlsxPageViewData& _XlsxViewData, XlsxPageViewDataTypes::TableData& _TableData);
 
         void PushCellFrameBgColor(XlsxPageViewDataTypes::TableData& _TableData, bool _IsRowHovered, bool _IsColHovered,
@@ -141,6 +144,9 @@ namespace LM
         void ChangeHeadersByConstruction(XlsxPageViewData& _XlsxViewData, XlsxPageViewDataTypes::TableData& _TableData,
                                          std::string_view _ConstrKey);
 
+        void DeleteUnknownColumnsForConstruction(XlsxPageViewData& _XlsxViewData,
+                                                 XlsxPageViewDataTypes::TableData& _TableData);
+
         void LoadConstructionsTree();
         void LoadConstructionsFields();
         void LoadFieldsDescription();
@@ -176,6 +182,8 @@ namespace LM
 
     protected:
         bool m_IsMainWindowFocused = false;
+        bool m_IsMainWindowAndChildFocused = false;
+        bool m_IsAnyOtherRelatedWindowFocused = false;
         bool m_IsAnyCellActive = false;
         bool m_IsAnyHeaderActive = false;
         std::optional<glm::u64vec2> m_SelectedCell = std::nullopt;
