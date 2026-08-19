@@ -5,6 +5,7 @@ from pathlib import Path
 import numpy as np
 import pandas as pd
 import pydantic
+from validation.basic_validation import normalize_and_validate_threadsh_fields, validate_basic_lengths, validate_bsg
 from base import ArgsBase, log_info_to_cpp, log_warning_to_cpp, log_error_to_cpp, remove_model_suffix, start_program
 from pydantic import BaseModel
 
@@ -399,6 +400,10 @@ def normalize_string_cells_symbols(df: pd.DataFrame):
 def run_post_transform_checks(df: pd.DataFrame, page_id: int):
     normalize_string_cells_symbols(df)
     normalize_and_validate_app_fields(df, page_id)
+    normalize_and_validate_threadsh_fields(df, page_id)
+    validate_basic_lengths(df, page_id)
+
+    validate_bsg(df, page_id)
 
 
 # def select_img_folder_with_suffix(base_folder: str) -> str:
