@@ -18,6 +18,17 @@ namespace LM
 
     std::string XlsxImgSyncPageView::GetFileName() const { return FileFormat::FormatImg(m_PageId); }
 
+    void XlsxImgSyncPageView::Draw()
+    {
+        std::error_code ec;
+        if (!std::filesystem::exists(m_Project->GetCatalogFilename(), ec))
+        {
+            return;
+        }
+
+        IPageView::Draw();
+    }
+
     void XlsxImgSyncPageView::DrawWindowContent()
     {
         Ref<Texture2D> texture = nullptr;

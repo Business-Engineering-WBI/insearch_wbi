@@ -5,6 +5,8 @@ namespace LM
 
     class XlsxImgSyncPageView : public IPageView
     {
+    public:
+        void Draw() override;
 
     protected:
         std::string GetFileName() const override;
