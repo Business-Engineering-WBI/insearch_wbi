@@ -107,69 +107,73 @@ namespace LM
             return std::make_tuple<int>(1);
         }
 
-        template <>
-        constexpr auto GetProperties<GenRawExcel>()
-        {
-            return std::make_tuple(                                        //
-                property(&GenRawExcel::UseCutPattern, "UseCutPattern"),    //
-                property(&GenRawExcel::IsGenerated, "IsGenerated"),        //
-                property(&GenRawExcel::NeedRebuild, "NeedRebuild"),        //
-                property(&GenRawExcel::Version, "Version"));
-        }
-
-        template <>
-        constexpr auto GetProperties<GenImgsByCutPattern>()
-        {
-            return std::make_tuple(                                            //
-                property(&GenImgsByCutPattern::IsGenerated, "IsGenerated"),    //
-                property(&GenImgsByCutPattern::NeedRebuild, "NeedRebuild"),    //
-                property(&GenImgsByCutPattern::Version, "Version"));
-        }
-
-        template <>
-        constexpr auto GetProperties<Project>()
-        {
-            return std::make_tuple(                               //
-                property(&Project::m_Type, "Type", { false }),    //
-                property(&Project::m_Folder, "Folder"),           //
-                property(&Project::m_Catalog, "Catalog"),         //
-                property(&Project::m_VariantExcelTables, "VariantExcelTables", { false }));
-        }
-
-        template <>
-        constexpr auto GetProperties<Catalog>()
-        {
-            return std::make_tuple(                                              //
-                property(&Catalog::BaseFileName, "BaseFileName"),                //
-                property(&Catalog::ImgQuality, "ImgQuality"),                    //
-                property(&Catalog::SplitPages, "SplitPages"),                    //
-                property(&Catalog::NeedRebuild, "NeedRebuild"),                  //
-                property(&Catalog::IsGenerated, "IsGenerated"),                  //
-                property(&Catalog::BotRightCutPattern, "BotRightCutPattern"),    //
-                property(&Catalog::TopLeftCutPattern, "TopLeftCutPattern"),
-                property(&Catalog::GeneratedCatalogExcludePages, "GeneratedCatalogExcludePages", { false }),    //
-                property(&Catalog::GenImgsByCutPattern, "GenImgsByCutPattern"),                                 //
-                property(&Catalog::GenRawExcel, "GenRawExcel"));
-        }
-
-        template <>
-        constexpr auto GetProperties<CatalogCutPattern>()
-        {
-            return std::make_tuple(                                    //
-                property(&CatalogCutPattern::PageId, "PageId"),        //
-                property(&CatalogCutPattern::PointMin, "PointMin"),    //
-                property(&CatalogCutPattern::PointMax, "PointMax"),    //
-                property(&CatalogCutPattern::CenterPoint, "CenterPoint"));
-        }
-
-        template <>
-        constexpr auto GetProperties<ProjectVariantExcelTables>()
-        {
-            return std::make_tuple(    //
-                property(&ProjectVariantExcelTables::m_PageNamesToSkipOnServerImport, "PageNamesToSkipOnServerImport",
-                         { false }));
-        }
     };
+
+    // Явные специализации статического шаблонного члена допустимы только в области
+    // видимости пространства имён (MSVC разрешал их внутри класса как расширение,
+    // gcc отклоняет: "explicit specialization in non-namespace scope").
+    template <>
+    constexpr auto SerializerGetPropertiesAll::GetProperties<GenRawExcel>()
+    {
+        return std::make_tuple(                                        //
+            property(&GenRawExcel::UseCutPattern, "UseCutPattern"),    //
+            property(&GenRawExcel::IsGenerated, "IsGenerated"),        //
+            property(&GenRawExcel::NeedRebuild, "NeedRebuild"),        //
+            property(&GenRawExcel::Version, "Version"));
+    }
+
+    template <>
+    constexpr auto SerializerGetPropertiesAll::GetProperties<GenImgsByCutPattern>()
+    {
+        return std::make_tuple(                                            //
+            property(&GenImgsByCutPattern::IsGenerated, "IsGenerated"),    //
+            property(&GenImgsByCutPattern::NeedRebuild, "NeedRebuild"),    //
+            property(&GenImgsByCutPattern::Version, "Version"));
+    }
+
+    template <>
+    constexpr auto SerializerGetPropertiesAll::GetProperties<Project>()
+    {
+        return std::make_tuple(                               //
+            property(&Project::m_Type, "Type", { false }),    //
+            property(&Project::m_Folder, "Folder"),           //
+            property(&Project::m_Catalog, "Catalog"),         //
+            property(&Project::m_VariantExcelTables, "VariantExcelTables", { false }));
+    }
+
+    template <>
+    constexpr auto SerializerGetPropertiesAll::GetProperties<Catalog>()
+    {
+        return std::make_tuple(                                              //
+            property(&Catalog::BaseFileName, "BaseFileName"),                //
+            property(&Catalog::ImgQuality, "ImgQuality"),                    //
+            property(&Catalog::SplitPages, "SplitPages"),                    //
+            property(&Catalog::NeedRebuild, "NeedRebuild"),                  //
+            property(&Catalog::IsGenerated, "IsGenerated"),                  //
+            property(&Catalog::BotRightCutPattern, "BotRightCutPattern"),    //
+            property(&Catalog::TopLeftCutPattern, "TopLeftCutPattern"),
+            property(&Catalog::GeneratedCatalogExcludePages, "GeneratedCatalogExcludePages", { false }),    //
+            property(&Catalog::GenImgsByCutPattern, "GenImgsByCutPattern"),                                 //
+            property(&Catalog::GenRawExcel, "GenRawExcel"));
+    }
+
+    template <>
+    constexpr auto SerializerGetPropertiesAll::GetProperties<CatalogCutPattern>()
+    {
+        return std::make_tuple(                                    //
+            property(&CatalogCutPattern::PageId, "PageId"),        //
+            property(&CatalogCutPattern::PointMin, "PointMin"),    //
+            property(&CatalogCutPattern::PointMax, "PointMax"),    //
+            property(&CatalogCutPattern::CenterPoint, "CenterPoint"));
+    }
+
+    template <>
+    constexpr auto SerializerGetPropertiesAll::GetProperties<ProjectVariantExcelTables>()
+    {
+        return std::make_tuple(    //
+            property(&ProjectVariantExcelTables::m_PageNamesToSkipOnServerImport, "PageNamesToSkipOnServerImport",
+                     { false }));
+    }
 
     template <typename Derived>
     struct SerializerBase_0_0_0

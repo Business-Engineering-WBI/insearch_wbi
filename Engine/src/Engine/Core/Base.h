@@ -5,7 +5,7 @@
 #ifdef DEBUG
     #if defined(WIN32)
         #define DEBUGBREAK() __debugbreak()
-    #elif defined(LINUX)
+    #elif defined(__linux__)
         #include <signal.h>
         #define DEBUGBREAK() raise(SIGTRAP)
     #else

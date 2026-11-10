@@ -1,5 +1,7 @@
 #include "LayerStack.h"
 
+#include <algorithm>    // std::find (MSVC pulls it via <vector>, libstdc++ doesn't)
+
 namespace LM
 {
 

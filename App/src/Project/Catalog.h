@@ -20,8 +20,10 @@ namespace LM
         CatalogCutPattern TopLeftCutPattern;
         CatalogCutPattern BotRightCutPattern;
 
-        GenImgsByCutPattern GenImgsByCutPattern;
-        GenRawExcel GenRawExcel;
+        // Типы квалифицированы пространством имён: неквалифицированное имя
+        // конфликтовало бы с одноимённым членом (gcc: -Wchanges-meaning, ill-formed в C++).
+        LM::GenImgsByCutPattern GenImgsByCutPattern;
+        LM::GenRawExcel GenRawExcel;
         std::vector<uint32_t> GeneratedCatalogExcludePages;
 
         bool IsNeedRebuild(const Catalog& _LastBuild) const

@@ -51,14 +51,24 @@ set(SOURCES
 
 source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SOURCES})
 
-add_compile_definitions(GLEW_STATIC _LIB IMGUI_DEFINE_MATH_OPERATORS RES_FOLDER="${CMAKE_SOURCE_DIR}/")
+# RES_FOLDER определяется в корневом CMakeLists (со своей логикой для Release);
+# дубль здесь вызывал warning о переопределении у Engine и всех FetchContent-целей
+# (для argstest, который собирается с -Werror, это фатально). В коде Engine RES_FOLDER не используется.
+add_compile_definitions(GLEW_STATIC _LIB IMGUI_DEFINE_MATH_OPERATORS)
 
 find_package(OpenGL REQUIRED)
+if(NOT WIN32)
+    find_package(X11 REQUIRED)
+endif()
 
 add_library(${PROJECT_NAME} STATIC)
 target_sources(${PROJECT_NAME} PRIVATE ${SOURCES})
 target_include_directories(${PROJECT_NAME} PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
 target_link_libraries(${PROJECT_NAME} ${OPENGL_LIBRARIES} glm args glfw glew stb imgui nfd)
+if(NOT WIN32)
+    # Plain signature on purpose: keeps X11 transitive for App (MakeScreenshot.cpp).
+    target_link_libraries(${PROJECT_NAME} ${X11_LIBRARIES})
+endif()
 
 
 include(FetchContent)

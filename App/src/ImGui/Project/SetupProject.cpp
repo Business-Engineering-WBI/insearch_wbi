@@ -248,10 +248,16 @@ namespace LM
             }
             else
             {
+#ifdef _WIN32
                 std::filesystem::path command = std::filesystem::path("explorer.exe");
                 // Open Explorer directly inside the folder (don't open parent and select)
                 std::string arg = "\"" + path.make_preferred().string() + "\"";
                 std::system((command.string() + " " + arg).c_str());
+#else
+                // Open the folder in the default file manager
+                std::string arg = "\"" + path.make_preferred().string() + "\"";
+                std::system(("xdg-open " + arg).c_str());
+#endif
             }
         }
 

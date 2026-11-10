@@ -60,6 +60,35 @@
             "description": "Generates Visual Studio solution and project files. Slower build than ninja.",
             "inherits": "windows-x64",
             "generator": "Visual Studio 17 2022"
+        },
+        {
+            "name": "linux-x64",
+            "hidden": true,
+            "inherits": "base",
+            "condition": {
+                "type": "equals",
+                "lhs": "${hostSystemName}",
+                "rhs": "Linux"
+            },
+            "architecture": {
+                "value": "x64",
+                "strategy": "external"
+            }
+        },
+        {
+            "name": "linux-ninja-x64",
+            "hidden": true,
+            "inherits": "linux-x64",
+            "generator": "Ninja"
+        },
+        {
+            "name": "linux-ninja-gcc-x64",
+            "displayName": "Linux Ninja GCC x64",
+            "inherits": "linux-ninja-x64",
+            "cacheVariables": {
+                "CMAKE_C_COMPILER": "gcc",
+                "CMAKE_CXX_COMPILER": "g++"
+            }
         }
     ],
     "buildPresets": [
@@ -115,6 +144,24 @@
             "name": "windows-vs-msvc-x64-RelWithDebInfo",
             "displayName": "Windows VS MSVC x64 RelWithDebInfo",
             "configurePreset": "windows-vs-msvc-x64",
+            "configuration": "RelWithDebInfo"
+        },
+        {
+            "name": "linux-ninja-gcc-x64-debug",
+            "displayName": "Linux Ninja GCC x64 Debug",
+            "configurePreset": "linux-ninja-gcc-x64",
+            "configuration": "Debug"
+        },
+        {
+            "name": "linux-ninja-gcc-x64-release",
+            "displayName": "Linux Ninja GCC x64 Release",
+            "configurePreset": "linux-ninja-gcc-x64",
+            "configuration": "Release"
+        },
+        {
+            "name": "linux-ninja-gcc-x64-RelWithDebInfo",
+            "displayName": "Linux Ninja GCC x64 RelWithDebInfo",
+            "configurePreset": "linux-ninja-gcc-x64",
             "configuration": "RelWithDebInfo"
         }
     ]

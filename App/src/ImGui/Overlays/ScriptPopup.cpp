@@ -1,5 +1,7 @@
 #include "ScriptPopup.h"
 
+#include <thread>
+
 #include "imgui.h"
 
 namespace LM

@@ -7,6 +7,10 @@
 #include <memory>
 #include <stdexcept>
 
+#ifndef _WIN32
+    #include <sys/wait.h>    // WIFEXITED / WEXITSTATUS
+#endif
+
 #include "Engine/Utils/Log.hpp"
 
 namespace LM

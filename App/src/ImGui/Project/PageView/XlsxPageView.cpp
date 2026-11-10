@@ -333,8 +333,8 @@ namespace LM
                         GetExtraListValue(xlsxViewData, tableData[0][colId].Value);
                     extraValue.has_value())
                 {
-                    std::string::difference_type textOffset =
-                        std::min(extraValue->get().end() - extraValue->get().begin(), 64ll);
+                    std::string::difference_type textOffset = std::min<std::string::difference_type>(
+                        extraValue->get().end() - extraValue->get().begin(), 64);
                     ImVec2 extraTextSize =
                         ImGui::CalcTextSize(extraValue->get().c_str(), extraValue->get().c_str() + textOffset);
                     columnWidths[colId + 1] = std::max(columnWidths[colId + 1], extraTextSize.x + framePaddingX * 2.0f);
@@ -2799,10 +2799,16 @@ namespace LM
                     }
                     else
                     {
+#ifdef _WIN32
                         std::filesystem::path command = std::filesystem::path("explorer.exe");
                         // Open Explorer directly inside the folder (don't open parent and select)
                         std::string arg = "\"" + path.make_preferred().string() + "\"";
                         std::system((command.string() + " " + arg).c_str());
+#else
+                        // Open the folder in the default file manager
+                        std::string arg = "\"" + path.make_preferred().string() + "\"";
+                        std::system(("xdg-open " + arg).c_str());
+#endif
                     }
                 }
 

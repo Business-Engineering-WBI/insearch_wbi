@@ -8,22 +8,31 @@
 #include "GLFW/glfw3.h"
 #include <cmath>
 
-#define GLFW_EXPOSE_NATIVE_WIN32
-#include "GLFW/glfw3native.h"
+#ifdef _WIN32
+    #define GLFW_EXPOSE_NATIVE_WIN32
+    #include "GLFW/glfw3native.h"
 
-#define UNICODE
-#define _UNICODE
-#include <Windows.h>
-#include <Windowsx.h>
-// #include <dwmapi.h>
-// #pragma comment(lib, "dwmapi.lib")
+    #define UNICODE
+    #define _UNICODE
+    #include <Windows.h>
+    #include <Windowsx.h>
+    // #include <dwmapi.h>
+    // #pragma comment(lib, "dwmapi.lib")
+#else
+    #define GLFW_EXPOSE_NATIVE_X11
+    #include "GLFW/glfw3native.h"
+    #include <X11/Xlib.h>
+#endif
 
 namespace LM
 {
 
+#ifdef _WIN32
     WNDPROC original_proc;
+#endif
     float g_MonitorScale = 1.0f;
 
+#ifdef _WIN32
     bool IsWindowMaximizedAlt(HWND hWnd)
     {
         WINDOWPLACEMENT wp;
@@ -195,6 +204,180 @@ namespace LM
         original_proc = (WNDPROC)SetWindowLongPtr(hWnd, GWLP_WNDPROC, reinterpret_cast<LONG_PTR>(WindowProc));
         SetWindowPos(hWnd, NULL, 0, 0, width, height, SWP_FRAMECHANGED | SWP_NOMOVE);
     }
+#else
+    namespace
+    {
+        Display* g_X11Display = nullptr;
+        ::Window g_X11Window = None;    // ::Window — X11-тип; LM::Window здесь не подходит
+        ::Window g_X11Root = None;
+        Atom g_NetWmMoveResize = None;
+        bool g_X11NativeUsable = false;
+        bool g_SyntheticReleasePending = false;
+
+        // Константы направлений из спецификации EWMH _NET_WM_MOVERESIZE.
+        constexpr int kSizeTopLeft = 0;
+        constexpr int kSizeTop = 1;
+        constexpr int kSizeTopRight = 2;
+        constexpr int kSizeRight = 3;
+        constexpr int kSizeBottomRight = 4;
+        constexpr int kSizeBottom = 5;
+        constexpr int kSizeBottomLeft = 6;
+        constexpr int kSizeLeft = 7;
+        constexpr int kMove = 8;
+    }    // namespace
+
+    // Аналог disableTitlebar(): кеширует нативные дескрипторы и рисует границу окна.
+    // WM может сбросить ширину границы при reparent, поэтому это best-effort —
+    // никакая другая логика от неё не зависит (в максимизации граница не видна и на Windows).
+    void setupX11Window(GLFWwindow* window)
+    {
+        if (glfwGetPlatform() != GLFW_PLATFORM_X11)
+        {
+            LOG_CORE_WARN("X11 platform is not active, custom border and window dragging are disabled");
+            return;
+        }
+
+        g_X11Display = glfwGetX11Display();
+        g_X11Window = glfwGetX11Window(window);
+        g_X11Root = DefaultRootWindow(g_X11Display);
+        g_NetWmMoveResize = XInternAtom(g_X11Display, "_NET_WM_MOVERESIZE", False);
+        g_X11NativeUsable = (g_X11Display != nullptr) && (g_X11Window != None) && (g_NetWmMoveResize != None);
+
+        if (!g_X11NativeUsable)
+        {
+            return;
+        }
+
+        // Аналог DrawBorder(): рамка 2px RGB(64, 64, 64).
+        const unsigned int borderWidth = static_cast<unsigned int>(std::lround(2.0f * g_MonitorScale));
+        XSetWindowBorderWidth(g_X11Display, g_X11Window, borderWidth);
+        XSetWindowBorder(g_X11Display, g_X11Window, 0x00404040UL);
+        XFlush(g_X11Display);
+    }
+
+    // Аналог WM_NCHITTEST: возвращает направление move/resize (EWMH) для позиции
+    // курсора в окне либо -1, если точка не в зоне взаимодействия.
+    int x11HitTestMoveResize(double _CursorX, double _CursorY, int _WindowWidth, int _WindowHeight)
+    {
+        const int border = static_cast<int>(std::lround(8.0f * g_MonitorScale));
+
+        const bool bottom = (_CursorY >= _WindowHeight - border);
+        const bool top = (_CursorY <= border);
+        const bool left = (_CursorX <= border);
+        const bool right = (_CursorX >= _WindowWidth - border);
+
+        if (bottom)
+        {
+            if (left) { return kSizeBottomLeft; }
+            if (right) { return kSizeBottomRight; }
+            return kSizeBottom;
+        }
+        if (top)
+        {
+            if (left) { return kSizeTopLeft; }
+            if (right) { return kSizeTopRight; }
+            return kSizeTop;
+        }
+        if (left) { return kSizeLeft; }
+        if (right) { return kSizeRight; }
+
+        // Аналог HTCAPTION: перетаскивание окна за пустое место главной меню-полосы.
+        if (_CursorY < Application::Get().GetMainMenuFrameHeight() &&
+            !Application::Get().GetIsMainMenuAnyItemHovered())
+        {
+            return kMove;
+        }
+
+        return -1;
+    }
+
+    bool sendX11MoveResize(int _Direction)
+    {
+        if (!g_X11NativeUsable)
+        {
+            return false;
+        }
+
+        ::Window rootReturn = None;
+        ::Window childReturn = None;
+        int rootX = 0;
+        int rootY = 0;
+        int winX = 0;
+        int winY = 0;
+        unsigned int buttonsMask = 0;
+        XQueryPointer(g_X11Display, g_X11Window, &rootReturn, &childReturn, &rootX, &rootY, &winX, &winY,
+                      &buttonsMask);
+
+        // Неявный grab указателя от ButtonPress обязательно снимается до запроса,
+        // иначе WM не начнёт интерактивный move/resize (та же техника, что в SDL).
+        XUngrabPointer(g_X11Display, CurrentTime);
+
+        XEvent event = {};
+        event.xclient.type = ClientMessage;
+        event.xclient.serial = 0;
+        event.xclient.send_event = True;
+        event.xclient.window = g_X11Window;
+        event.xclient.message_type = g_NetWmMoveResize;
+        event.xclient.format = 32;
+        event.xclient.data.l[0] = rootX;
+        event.xclient.data.l[1] = rootY;
+        event.xclient.data.l[2] = _Direction;
+        event.xclient.data.l[3] = Button1;
+        event.xclient.data.l[4] = 1;    // source indicator: обычное приложение
+
+        XSendEvent(g_X11Display, g_X11Root, False, SubstructureRedirectMask | SubstructureNotifyMask, &event);
+        XFlush(g_X11Display);
+        return true;
+    }
+
+    void tryStartX11MoveResize(GLFWwindow* window)
+    {
+        if (!g_X11NativeUsable)
+        {
+            return;
+        }
+
+        double cursorX = 0.0;
+        double cursorY = 0.0;
+        glfwGetCursorPos(window, &cursorX, &cursorY);
+
+        int windowWidth = 0;
+        int windowHeight = 0;
+        glfwGetWindowSize(window, &windowWidth, &windowHeight);
+
+        const int direction = x11HitTestMoveResize(cursorX, cursorY, windowWidth, windowHeight);
+        if (direction < 0)
+        {
+            return;
+        }
+
+        // Resize за край в максимизированном состоянии намеренно разрешён:
+        // Mutter сначала вернёт окно из максимизации и затем изменит размер —
+        // так же, как тяга за край максимизированного окна ведёт себя на Windows.
+        if (sendX11MoveResize(direction))
+        {
+            // WM перехватил grab; физический ButtonRelease до GLFW не дойдёт.
+            // Планируем синтетический release, чтобы ImGui не «залип» с зажатой ЛКМ.
+            g_SyntheticReleasePending = true;
+        }
+    }
+
+    // Проигрывает LEFT RELEASE через всю установленную цепочку колбэков
+    // (imgui_impl_glfw -> лямбда Engine), чтобы обе системы ввода узнали об
+    // отпускании кнопки после WM-операции. Вызывается из OnUpdate() после
+    // glfwPollEvents(), а не из press-колбэка: imgui_impl_glfw вызывает
+    // prev-колбэк ДО своего io.AddMouseButtonEvent, поэтому release, посланный
+    // изнутри press, был бы перекрыт настоящим press-событием.
+    void flushSyntheticMouseRelease(GLFWwindow* window)
+    {
+        GLFWmousebuttonfun callback = glfwSetMouseButtonCallback(window, nullptr);
+        glfwSetMouseButtonCallback(window, callback);
+        if (callback != nullptr)
+        {
+            callback(window, GLFW_MOUSE_BUTTON_LEFT, GLFW_RELEASE, 0);
+        }
+    }
+#endif
 
     bool glfw_get_window_monitor(GLFWmonitor** monitor, GLFWwindow* window)
     {
@@ -343,17 +526,35 @@ namespace LM
     {
         glfwMakeContextCurrent(m_Window);
         glfwPollEvents();
+#ifndef _WIN32
+        if (g_SyntheticReleasePending)
+        {
+            g_SyntheticReleasePending = false;
+            flushSyntheticMouseRelease(m_Window);
+        }
+#endif
         glfwSwapBuffers(m_Window);
     }
 
     bool GLFWWindow::Init()
     {
+#ifndef _WIN32
+        // Форсим X11-бэкенд: под Wayland-сессией (дефолт GNOME) это работает
+        // через XWayland, сохраняя доступным нативное управление окном.
+        glfwInitHint(GLFW_PLATFORM, GLFW_PLATFORM_X11);
+#endif
         if (!glfwInit())
         {
             LOG_CORE_ERROR("Failed to initialize GLFW!");
             return false;
         }
         glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GLFW_TRUE);
+#ifndef _WIN32
+        // Окно без рамки, но под управлением WM (GLFW ставит _MOTIF_WM_HINTS
+        // decorations=0). Аналог Win32-ветки, где WM_NCCALCSIZE съедает
+        // неклиентскую часть рамки.
+        glfwWindowHint(GLFW_DECORATED, GLFW_FALSE);
+#endif
         m_Window = glfwCreateWindow(m_Data.Width, m_Data.Height, m_Data.Title.c_str(), NULL, NULL);
 
         if (!m_Window)
@@ -369,7 +570,11 @@ namespace LM
         }
         glfwGetMonitorContentScale(nowMonitor, NULL, &m_Data.MonitorScale);
         g_MonitorScale = m_Data.MonitorScale;
+#ifdef _WIN32
         disableTitlebar(m_Window);
+#else
+        setupX11Window(m_Window);
+#endif
         glfwMaximizeWindow(m_Window);
 
         LOG_CORE_INFO("Current monitor: {} scale: {}", static_cast<void*>(nowMonitor), m_Data.MonitorScale);
@@ -502,6 +707,12 @@ namespace LM
                 case GLFW_PRESS: {
                     MouseButtonPressedEvent event(button);
                     data.EventCallback(event);
+#ifndef _WIN32
+                    if (button == GLFW_MOUSE_BUTTON_LEFT)
+                    {
+                        tryStartX11MoveResize(window);
+                    }
+#endif
                     break;
                 }
                 case GLFW_RELEASE: {

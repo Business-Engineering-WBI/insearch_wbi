@@ -1,10 +1,12 @@
 #pragma once
 
+#include <algorithm>
 #include <filesystem>
 #include <functional>
 #include <optional>
 #include <string>
 #include <unordered_map>
+#include <vector>
 
 namespace LM
 {
