@@ -3,6 +3,7 @@
 #include <cstdint>
 #include <functional>
 #include <string>
+#include <vector>
 
 #include "Engine/Core/Base.h"
 #include "Engine/Events/Event.h"
@@ -14,6 +15,9 @@ namespace LM
         std::string Title = "Engine";
         uint32_t Width = 1280u;
         uint32_t Height = 720u;
+        // PNG-иконки окна/таскбара (несколько размеров). Используются на Linux;
+        // на Windows иконка берётся из ресурса GLFW_ICON внутри .exe (App/res/app.rc).
+        std::vector<std::string> IconPaths;
     };
 
     class Window

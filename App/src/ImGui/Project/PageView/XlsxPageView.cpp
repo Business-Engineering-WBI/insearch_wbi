@@ -101,24 +101,24 @@ namespace LM
 
     static const std::array kInterpModelLettersToRemove = {
         std::pair {  " "sv,  ""sv },
-         std::pair { " "sv,  ""sv },
+         std::pair {  " "sv,  ""sv },
          std::pair {  "-"sv,  ""sv },
          std::pair {  "."sv, ","sv },
         std::pair {  "*"sv,  ""sv },
          std::pair {  "^"sv,  ""sv },
          std::pair { "\\"sv,  ""sv },
          std::pair {  "/"sv,  ""sv },
-        std::pair { "К"sv, "K"sv },
-         std::pair { "Е"sv, "E"sv },
-         std::pair { "Н"sv, "H"sv },
-         std::pair { "Х"sv, "X"sv },
-        std::pair { "В"sv, "B"sv },
-         std::pair { "А"sv, "A"sv },
-         std::pair { "Р"sv, "P"sv },
-         std::pair { "О"sv, "O"sv },
-        std::pair { "С"sv, "C"sv },
-         std::pair { "М"sv, "M"sv },
-         std::pair { "Т"sv, "T"sv },
+        std::pair {  "К"sv, "K"sv },
+         std::pair {  "Е"sv, "E"sv },
+         std::pair {  "Н"sv, "H"sv },
+         std::pair {  "Х"sv, "X"sv },
+        std::pair {  "В"sv, "B"sv },
+         std::pair {  "А"sv, "A"sv },
+         std::pair {  "Р"sv, "P"sv },
+         std::pair {  "О"sv, "O"sv },
+        std::pair {  "С"sv, "C"sv },
+         std::pair {  "М"sv, "M"sv },
+         std::pair {  "Т"sv, "T"sv },
     };
 
     const std::string InterpolateModel(std::string_view _Model)
@@ -333,8 +333,8 @@ namespace LM
                         GetExtraListValue(xlsxViewData, tableData[0][colId].Value);
                     extraValue.has_value())
                 {
-                    std::string::difference_type textOffset = std::min<std::string::difference_type>(
-                        extraValue->get().end() - extraValue->get().begin(), 64);
+                    std::string::difference_type textOffset =
+                        std::min<std::string::difference_type>(extraValue->get().end() - extraValue->get().begin(), 64);
                     ImVec2 extraTextSize =
                         ImGui::CalcTextSize(extraValue->get().c_str(), extraValue->get().c_str() + textOffset);
                     columnWidths[colId + 1] = std::max(columnWidths[colId + 1], extraTextSize.x + framePaddingX * 2.0f);
@@ -409,8 +409,9 @@ namespace LM
                             if (constrExample.contains(header))
                             {
                                 ImGui::Text("  %s  ", constrExample.at(header)[rowId - 1].c_str());
-                                float cellTextSize = ImGui::CalcTextSize(constrExample.at(header)[rowId - 1].c_str()).x +
-                                                     ImGui::CalcTextSize("    ").x;
+                                float cellTextSize =
+                                    ImGui::CalcTextSize(constrExample.at(header)[rowId - 1].c_str()).x +
+                                    ImGui::CalcTextSize("    ").x;
                                 columnWidths[colId + 1] = std::max(columnWidths[colId + 1], cellTextSize);
                             }
 
@@ -514,7 +515,7 @@ namespace LM
                         if (state)
                         {
                             state->CursorAnimReset();    // сброс мигания
-                            state->CursorClamp();    // убедиться, что курсор в допустимых границах
+                            state->CursorClamp();        // убедиться, что курсор в допустимых границах
                             state->ClearSelection();
                         }
                     }

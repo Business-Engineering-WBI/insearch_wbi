@@ -35,7 +35,10 @@ namespace LM
             std::filesystem::current_path(specification.CommandLineArgs.Args[1]);
         }
 
-        m_Window = Window::Create(WindowProps { m_Specification.Name });
+        WindowProps windowProps;
+        windowProps.Title = m_Specification.Name;
+        windowProps.IconPaths = m_Specification.WindowIconPaths;
+        m_Window = Window::Create(windowProps);
         m_Window->SetEventCallback(BIND_EVENT_FN(Application::OnEvent));
 
         m_ImGuiLayer = new ImGuiLayer();

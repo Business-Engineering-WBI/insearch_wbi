@@ -1,0 +1,17 @@
+[Desktop Entry]
+Type=Application
+Version=1.0
+Name=InSearch Creator
+Comment=InSearch WBI editor
+# Подстановки выполняет scripts/linux-desktop/install.sh:
+#   @APP_EXEC@    — абсолютный путь к собранному бинарнику
+#   @APP_WORKDIR@ — рабочая директория (корень репозитория, рядом с assets/)
+#   @APP_ICON@    — имя иконки в теме hicolor (insearch-creator)
+Exec="@APP_EXEC@"
+Path=@APP_WORKDIR@
+Icon=@APP_ICON@
+Terminal=false
+Categories=Office;
+# Должен совпадать с res_class из WM_CLASS окна (setupX11WindowIcon в GLFWWindow.cpp)
+StartupWMClass=InSearchCreator
+StartupNotify=true

@@ -7,6 +7,8 @@
 #include "Engine/Utils/Log.hpp"
 #include "GLFW/glfw3.h"
 #include <cmath>
+#include <string>
+#include <vector>
 
 #ifdef _WIN32
     #define GLFW_EXPOSE_NATIVE_WIN32
@@ -22,6 +24,8 @@
     #define GLFW_EXPOSE_NATIVE_X11
     #include "GLFW/glfw3native.h"
     #include <X11/Xlib.h>
+    #include <X11/Xutil.h>    // XClassHint
+    #include <stb_image.h>
 #endif
 
 namespace LM
@@ -253,6 +257,62 @@ namespace LM
         XSetWindowBorderWidth(g_X11Display, g_X11Window, borderWidth);
         XSetWindowBorder(g_X11Display, g_X11Window, 0x00404040UL);
         XFlush(g_X11Display);
+    }
+
+    // Аналог ресурса GLFW_ICON из App/res/app.rc: на Linux иконку нельзя вшить
+    // в бинарник, поэтому грузим PNG-кадры и ставим их как _NET_WM_ICON (иконка
+    // окна, таскбар, Alt-Tab), а также перезаписываем WM_CLASS (GLFW пишет туда
+    // заголовок окна) — по нему GNOME связывает запущенное окно с .desktop-
+    // лаунчером (StartupWMClass), см. scripts/linux-desktop/install.sh.
+    void setupX11WindowIcon(GLFWwindow* window, const std::vector<std::string>& _IconPaths)
+    {
+        if (glfwGetPlatform() != GLFW_PLATFORM_X11)
+        {
+            return;    // о не-X11 платформе уже предупредил setupX11Window
+        }
+
+        Display* display = glfwGetX11Display();
+        if (display == nullptr)
+        {
+            return;
+        }
+
+        // res_class обязан совпадать со StartupWMClass в insearch-creator.desktop.
+        char instanceName[] = "insearch-creator";
+        char className[] = "InSearchCreator";
+        XClassHint classHint = {};
+        classHint.res_name = instanceName;
+        classHint.res_class = className;
+        XSetClassHint(display, glfwGetX11Window(window), &classHint);
+
+        std::vector<GLFWimage> images;
+        std::vector<unsigned char*> pixelsBuffers;
+        images.reserve(_IconPaths.size());
+        for (const std::string& path : _IconPaths)
+        {
+            int width = 0;
+            int height = 0;
+            unsigned char* pixels = stbi_load(path.c_str(), &width, &height, nullptr, STBI_rgb_alpha);
+            if (pixels == nullptr)
+            {
+                LOG_CORE_WARN("Can't load window icon: {}", path);
+                continue;
+            }
+            pixelsBuffers.push_back(pixels);
+            images.push_back(GLFWimage { width, height, pixels });
+        }
+
+        if (!images.empty())
+        {
+            glfwSetWindowIcon(window, static_cast<int>(images.size()), images.data());
+        }
+
+        // glfwSetWindowIcon копирует данные, буферы можно освободить.
+        for (unsigned char* pixels : pixelsBuffers)
+        {
+            stbi_image_free(pixels);
+        }
+        XFlush(display);
     }
 
     // Аналог WM_NCHITTEST: возвращает направление move/resize (EWMH) для позиции
@@ -574,6 +634,7 @@ namespace LM
         disableTitlebar(m_Window);
 #else
         setupX11Window(m_Window);
+        setupX11WindowIcon(m_Window, m_Data.IconPaths);
 #endif
         glfwMaximizeWindow(m_Window);
 

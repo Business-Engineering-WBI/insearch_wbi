@@ -1,6 +1,7 @@
 #pragma once
 
 #include <functional>
+#include <vector>
 
 #include "Engine/Core/Assert.h"
 #include "Engine/Core/Base.h"
@@ -31,6 +32,8 @@ namespace LM
     {
         std::string Name = "LM Application";
         std::string WorkingDirectory;
+        // PNG-иконки окна (несколько размеров); см. WindowProps::IconPaths.
+        std::vector<std::string> WindowIconPaths;
         ApplicationCommandLineArgs CommandLineArgs;
     };
 

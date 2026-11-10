@@ -17,9 +17,9 @@ set(SOURCES
     src/Engine/Core/EntryPoint.h          
     src/Engine/Core/MouseCodes.h
     
-    src/Engine/ImGui/imgui_impl_glfw.h                          src/Engine/ImGui/imgui_impl_glfw.cpp
-    src/Engine/ImGui/imgui_impl_opengl3.h                       src/Engine/ImGui/imgui_impl_opengl3.cpp
-    src/Engine/ImGui/imgui_impl_opengl3_loader.h            
+    src/Engine/ImGui/ImGuiImplGLFW.h                            src/Engine/ImGui/ImGuiImplGLFW.cpp
+    src/Engine/ImGui/ImGuiImplOpenGL3.h                         src/Engine/ImGui/ImGuiImplOpenGL3.cpp
+    src/Engine/ImGui/ImGuiImplOpenGL3Loader.h            
     src/Engine/ImGui/ImGuiButtonColored.hpp                     src/Engine/ImGui/ImGuiButtonColored.cpp
 
     src/Engine/Textures/Texture2D.h                             src/Engine/Textures/Texture2D.cpp
@@ -108,7 +108,7 @@ FetchContent_MakeAvailable(args)
 FetchContent_Declare(
     imgui
     GIT_REPOSITORY https://github.com/ocornut/imgui.git
-    GIT_TAG v1.92.4-docking
+    GIT_TAG v1.93.0-docking
 )
 FetchContent_GetProperties(imgui)
 if (NOT imgui_POPULATED)
@@ -131,8 +131,9 @@ if (NOT imgui_POPULATED)
     add_library(imgui STATIC)
     target_sources(imgui PRIVATE
         ${IMGUI_SOURCES}
-        ${imgui_SOURCE_DIR}/backends/imgui_impl_glfw.h ${imgui_SOURCE_DIR}/backends/imgui_impl_glfw.cpp
-        ${imgui_SOURCE_DIR}/backends/imgui_impl_opengl3.h ${imgui_SOURCE_DIR}/backends/imgui_impl_opengl3.cpp
+        ${imgui_SOURCE_DIR}/backends/imgui_impl_glfw.h
+        ${imgui_SOURCE_DIR}/backends/imgui_impl_opengl3.h
+        ${imgui_SOURCE_DIR}/backends/imgui_impl_opengl3_loader.h
     )
     target_include_directories(imgui PUBLIC ${IMGUI_INCLUDE_DIR})
     target_link_libraries(imgui glfw)
