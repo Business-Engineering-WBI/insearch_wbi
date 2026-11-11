@@ -48,35 +48,65 @@
 
 #define _CRT_SECURE_NO_WARNINGS
 
+namespace
+{
+    std::string UpperUtf8(std::string_view _Text)
+    {
+        std::string str(_Text);
+        utf8upr(reinterpret_cast<utf8_int8_t*>(str.data()));
+        return str;
+    }
+}    // namespace
+
+// То же, что ImGuiTextFilter::PassFilter(), но с регистронезависимым сравнением по UTF-8
+// (ImStristr в ImGui понимает только ASCII-регистр, а фильтруются кириллические строки).
+// ImGui 1.93: вместо Filters/ImGuiTextRange используется _Items/ImGuiTextFilterItem,
+// '-исключения' идут первыми (_CountExclude штук), остальные — цепочки включений
+// (слова в цепочке через пробел = И, цепочки через запятую = ИЛИ).
 bool CustomPassFilter(const ImGuiTextFilter& _TextFilter, std::string_view text)
 {
-    if (_TextFilter.Filters.Size == 0)
+    if (_TextFilter._Items.Size == 0)
     {
         return true;
     }
 
-    for (const ImGuiTextFilter::ImGuiTextRange& f : _TextFilter.Filters)
-    {
-        if (f.b == f.e)
-        {
-            continue;
-        }
+    const std::string textStr = UpperUtf8(text);
 
-        std::string filterStr(f.b, f.e);
-        std::string textStr(text);
-        utf8upr(reinterpret_cast<utf8_int8_t*>(filterStr.data()));
-        utf8upr(reinterpret_cast<utf8_int8_t*>(textStr.data()));
-        if (textStr.find(filterStr) != std::string::npos)
+    for (int i = 0; i < _TextFilter._CountExclude; ++i)
+    {
+        const ImGuiTextFilterItem& f = _TextFilter._Items[i];
+        if (textStr.find(UpperUtf8(std::string_view(f.Begin, f.Len))) != std::string::npos)
         {
-            return true;
+            return false;
         }
     }
 
-    // // Implicit * grep
-    // if (CountGrep == 0)
-    // {
-    //     return true;
-    // }
+    // Только исключения — всё проходит
+    if (_TextFilter._CountExclude == _TextFilter._Items.Size)
+    {
+        return true;
+    }
+
+    int i = _TextFilter._CountExclude;
+    while (i < _TextFilter._Items.Size)
+    {
+        const int chainLength = _TextFilter._Items[i].CountInclude;
+        bool allMatched = true;
+        for (int j = i; j < i + chainLength; ++j)
+        {
+            const ImGuiTextFilterItem& f = _TextFilter._Items[j];
+            if (textStr.find(UpperUtf8(std::string_view(f.Begin, f.Len))) == std::string::npos)
+            {
+                allMatched = false;
+                break;
+            }
+        }
+        if (allMatched)
+        {
+            return true;
+        }
+        i += chainLength;
+    }
 
     return false;
 }

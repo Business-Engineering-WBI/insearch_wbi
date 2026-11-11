@@ -3,8 +3,8 @@
 #include <imgui.h>
 #include <imgui_internal.h>
 
-#include <Engine/ImGui/imgui_impl_glfw.h>
-#include <Engine/ImGui/imgui_impl_opengl3.h>
+#include <Engine/ImGui/ImGuiImplGLFW.h>
+#include <Engine/ImGui/ImGuiImplOpenGL3.h>
 
 #include "Engine/Core/Application.h"
 #include "Engine/Events/EventDispatcher.h"
@@ -236,6 +236,11 @@ namespace LM
         {
             ImGuiIO& io = ImGui::GetIO();
 
+            if (_NeedUpdateFontTexture)
+            {
+                io.Fonts->ClearFonts();
+            }
+
             ImFontConfig config;
 
             ImFont* font = nullptr;
@@ -265,13 +270,6 @@ namespace LM
                                                           io.Fonts->GetGlyphRangesCyrillic());
 
             io.FontDefault = font;
-
-            if (_NeedUpdateFontTexture)
-            {
-                io.Fonts->Build();
-                ImGui_ImplOpenGL3_DestroyFontsTexture();
-                ImGui_ImplOpenGL3_CreateFontsTexture();
-            }
 
             LOG_CORE_INFO("Font size: {}", m_FontSize);
 
