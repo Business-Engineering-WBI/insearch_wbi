@@ -36,6 +36,46 @@ namespace LM
 #endif
     float g_MonitorScale = 1.0f;
 
+    // Аналог зон ресайза из WM_NCHITTEST (HTLEFT/HTTOP/...): возвращает направление
+    // ресайза для точки курсора (координаты — от левого верхнего угла клиентской
+    // области окна) либо Outside. В максимизированном состоянии ресайз за края
+    // запрещён, поэтому всегда Outside.
+    WindowResizeDirection hitTestResizeDirection(GLFWwindow* _Window, double _CursorX, double _CursorY)
+    {
+        if (_Window == nullptr || glfwGetWindowAttrib(_Window, GLFW_MAXIMIZED) == GLFW_TRUE)
+        {
+            return WindowResizeDirection::Outside;
+        }
+
+        int windowWidth = 0;
+        int windowHeight = 0;
+        glfwGetWindowSize(_Window, &windowWidth, &windowHeight);
+
+        const int border = static_cast<int>(std::lround(8.0f * g_MonitorScale));
+
+        const bool bottom = (_CursorY >= windowHeight - border);
+        const bool top = (_CursorY <= border);
+        const bool left = (_CursorX <= border);
+        const bool right = (_CursorX >= windowWidth - border);
+
+        if (bottom)
+        {
+            if (left) { return WindowResizeDirection::BottomLeft; }
+            if (right) { return WindowResizeDirection::BottomRight; }
+            return WindowResizeDirection::Bottom;
+        }
+        if (top)
+        {
+            if (left) { return WindowResizeDirection::TopLeft; }
+            if (right) { return WindowResizeDirection::TopRight; }
+            return WindowResizeDirection::Top;
+        }
+        if (left) { return WindowResizeDirection::Left; }
+        if (right) { return WindowResizeDirection::Right; }
+
+        return WindowResizeDirection::Outside;
+    }
+
 #ifdef _WIN32
     bool IsWindowMaximizedAlt(HWND hWnd)
     {
@@ -133,43 +173,48 @@ namespace LM
                 RECT windowRect;
                 GetWindowRect(hWnd, &windowRect);
 
-                if (mousePos.y >= windowRect.bottom - borderWidth)
+                // В максимизированном состоянии ресайз за края запрещён (как и в
+                // X11-ветке), остаются только HTCAPTION ниже и клиентская область.
+                if (IsZoomed(hWnd) == 0)
                 {
-                    if (mousePos.x <= windowRect.left + borderWidth)
+                    if (mousePos.y >= windowRect.bottom - borderWidth)
                     {
-                        return HTBOTTOMLEFT;
+                        if (mousePos.x <= windowRect.left + borderWidth)
+                        {
+                            return HTBOTTOMLEFT;
+                        }
+                        else if (mousePos.x >= windowRect.right - borderWidth)
+                        {
+                            return HTBOTTOMRIGHT;
+                        }
+                        else
+                        {
+                            return HTBOTTOM;
+                        }
+                    }
+                    else if (mousePos.y <= windowRect.top + borderWidth)
+                    {
+                        if (mousePos.x <= windowRect.left + borderWidth)
+                        {
+                            return HTTOPLEFT;
+                        }
+                        else if (mousePos.x >= windowRect.right - borderWidth)
+                        {
+                            return HTTOPRIGHT;
+                        }
+                        else
+                        {
+                            return HTTOP;
+                        }
+                    }
+                    else if (mousePos.x <= windowRect.left + borderWidth)
+                    {
+                        return HTLEFT;
                     }
                     else if (mousePos.x >= windowRect.right - borderWidth)
                     {
-                        return HTBOTTOMRIGHT;
+                        return HTRIGHT;
                     }
-                    else
-                    {
-                        return HTBOTTOM;
-                    }
-                }
-                else if (mousePos.y <= windowRect.top + borderWidth)
-                {
-                    if (mousePos.x <= windowRect.left + borderWidth)
-                    {
-                        return HTTOPLEFT;
-                    }
-                    else if (mousePos.x >= windowRect.right - borderWidth)
-                    {
-                        return HTTOPRIGHT;
-                    }
-                    else
-                    {
-                        return HTTOP;
-                    }
-                }
-                else if (mousePos.x <= windowRect.left + borderWidth)
-                {
-                    return HTLEFT;
-                }
-                else if (mousePos.x >= windowRect.right - borderWidth)
-                {
-                    return HTRIGHT;
                 }
 
                 ScreenToClient(hWnd, &mousePos);
@@ -317,31 +362,24 @@ namespace LM
 
     // Аналог WM_NCHITTEST: возвращает направление move/resize (EWMH) для позиции
     // курсора в окне либо -1, если точка не в зоне взаимодействия.
-    int x11HitTestMoveResize(double _CursorX, double _CursorY, int _WindowWidth, int _WindowHeight)
+    int x11HitTestMoveResize(GLFWwindow* _Window, double _CursorX, double _CursorY)
     {
-        const int border = static_cast<int>(std::lround(8.0f * g_MonitorScale));
-
-        const bool bottom = (_CursorY >= _WindowHeight - border);
-        const bool top = (_CursorY <= border);
-        const bool left = (_CursorX <= border);
-        const bool right = (_CursorX >= _WindowWidth - border);
-
-        if (bottom)
+        switch (hitTestResizeDirection(_Window, _CursorX, _CursorY))
         {
-            if (left) { return kSizeBottomLeft; }
-            if (right) { return kSizeBottomRight; }
-            return kSizeBottom;
+            case WindowResizeDirection::TopLeft: return kSizeTopLeft;
+            case WindowResizeDirection::Top: return kSizeTop;
+            case WindowResizeDirection::TopRight: return kSizeTopRight;
+            case WindowResizeDirection::Right: return kSizeRight;
+            case WindowResizeDirection::BottomRight: return kSizeBottomRight;
+            case WindowResizeDirection::Bottom: return kSizeBottom;
+            case WindowResizeDirection::BottomLeft: return kSizeBottomLeft;
+            case WindowResizeDirection::Left: return kSizeLeft;
+            case WindowResizeDirection::Outside: break;
         }
-        if (top)
-        {
-            if (left) { return kSizeTopLeft; }
-            if (right) { return kSizeTopRight; }
-            return kSizeTop;
-        }
-        if (left) { return kSizeLeft; }
-        if (right) { return kSizeRight; }
 
         // Аналог HTCAPTION: перетаскивание окна за пустое место главной меню-полосы.
+        // В максимизированном состоянии работает штатно: WM снимет максимизацию
+        // при начале перемещения.
         if (_CursorY < Application::Get().GetMainMenuFrameHeight() &&
             !Application::Get().GetIsMainMenuAnyItemHovered())
         {
@@ -401,19 +439,15 @@ namespace LM
         double cursorY = 0.0;
         glfwGetCursorPos(window, &cursorX, &cursorY);
 
-        int windowWidth = 0;
-        int windowHeight = 0;
-        glfwGetWindowSize(window, &windowWidth, &windowHeight);
-
-        const int direction = x11HitTestMoveResize(cursorX, cursorY, windowWidth, windowHeight);
+        const int direction = x11HitTestMoveResize(window, cursorX, cursorY);
         if (direction < 0)
         {
             return;
         }
 
-        // Resize за край в максимизированном состоянии намеренно разрешён:
-        // Mutter сначала вернёт окно из максимизации и затем изменит размер —
-        // так же, как тяга за край максимизированного окна ведёт себя на Windows.
+        // Resize за край в максимизированном состоянии запрещён:
+        // hitTestResizeDirection возвращает Outside для краёв, так что при
+        // maximized сюда доходит только kMove за меню-полосу.
         if (sendX11MoveResize(direction))
         {
             // WM перехватил grab; физический ButtonRelease до GLFW не дойдёт.
@@ -574,6 +608,14 @@ namespace LM
     {
         int maximized = glfwGetWindowAttrib(m_Window, GLFW_MAXIMIZED);
         return maximized == GLFW_TRUE;
+    }
+
+    WindowResizeDirection GLFWWindow::GetResizeDirectionUnderCursor() const
+    {
+        double cursorX = 0.0;
+        double cursorY = 0.0;
+        glfwGetCursorPos(m_Window, &cursorX, &cursorY);
+        return hitTestResizeDirection(m_Window, cursorX, cursorY);
     }
 
     void GLFWWindow::Maximize() { glfwMaximizeWindow(m_Window); }

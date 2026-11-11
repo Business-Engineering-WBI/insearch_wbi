@@ -18,6 +18,8 @@ namespace LM
         virtual float GetMonitorScale() const override { return m_Data.MonitorScale; }
         virtual bool IsWindowMaximized() const override;
 
+        virtual WindowResizeDirection GetResizeDirectionUnderCursor() const override;
+
         virtual void Maximize() override;
         virtual void Minimize() override;
         virtual void Restore() override;

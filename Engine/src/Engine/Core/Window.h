@@ -20,6 +20,22 @@ namespace LM
         std::vector<std::string> IconPaths;
     };
 
+    // Направление ресайза окна за край (аналог HTLEFT/HTTOP... из Win32 и
+    // направлений EWMH _NET_WM_MOVERESIZE). Outside — точка вне зоны ресайза.
+    // (None как имя нельзя: X11 X.h определяет макрос None.)
+    enum class WindowResizeDirection
+    {
+        Outside,
+        TopLeft,
+        Top,
+        TopRight,
+        Right,
+        BottomRight,
+        Bottom,
+        BottomLeft,
+        Left,
+    };
+
     class Window
     {
     public:
@@ -31,6 +47,12 @@ namespace LM
         virtual uint32_t GetHeight() const = 0;
         virtual float GetMonitorScale() const = 0;
         virtual bool IsWindowMaximized() const = 0;
+
+        // Направление ресайза окна за край под текущей позицией курсора (в
+        // координатах клиентской области окна). Outside, если курсор не в зоне
+        // ресайза либо ресайз за края сейчас недоступен (например, окно
+        // максимизировано).
+        virtual WindowResizeDirection GetResizeDirectionUnderCursor() const = 0;
 
         virtual void Maximize() = 0;
         virtual void Minimize() = 0;

@@ -145,30 +145,66 @@ namespace LM
     {
         ChangeFontSize(true);
 
-        Application& app = Application::Get();
-        GLFWwindow* window = static_cast<GLFWwindow*>(app.GetWindow().GetNativeWindow());
+#ifdef _WIN32
+        // Windows: resize-курсор над краями ставит сама ОС (WM_NCHITTEST ->
+        // WM_SETCURSOR -> DefWindowProc), а backend ImGui на каждом кадре
+        // перекрывал бы его стрелкой. Вдобавок зона HTTOP у нас лежит внутри
+        // клиентской области (WM_NCCALCSIZE среза сверху только ~1px), поэтому
+        // запрет изменения курсора backend'ом над краями здесь необходим.
         ImGuiIO& io = ImGui::GetIO();
-
-        int win_w, win_h;
+        GLFWwindow* window = static_cast<GLFWwindow*>(Application::Get().GetWindow().GetNativeWindow());
+        int win_w = 0;
+        int win_h = 0;
         glfwGetWindowSize(window, &win_w, &win_h);
-        double mouse_x, mouse_y;
+        double mouse_x = 0.0;
+        double mouse_y = 0.0;
         glfwGetCursorPos(window, &mouse_x, &mouse_y);
-        // bool on_edge = mouse_x <= 8 || mouse_x >= win_w - 8 || mouse_y <= 8 || mouse_y >= win_h - 8;
         bool on_edge = (mouse_x >= 0 && mouse_x <= win_w && mouse_y >= 0 && mouse_y <= win_h) &&
                        (mouse_x <= 8 || mouse_x >= win_w - 8 || mouse_y <= 8 || mouse_y >= win_h - 8);
-
-        if (on_edge)
-        {
-            io.ConfigFlags |= ImGuiConfigFlags_NoMouseCursorChange;
-        }
-        else
-        {
-            io.ConfigFlags &= ~ImGuiConfigFlags_NoMouseCursorChange;
-        }
+        io.ConfigFlags = on_edge ? io.ConfigFlags | ImGuiConfigFlags_NoMouseCursorChange
+                                 : io.ConfigFlags & ~ImGuiConfigFlags_NoMouseCursorChange;
+#endif
 
         ImGui_ImplOpenGL3_NewFrame();
         ImGui_ImplGlfw_NewFrame();
         ImGui::NewFrame();
+
+        ApplyWindowEdgeMouseCursor();
+    }
+
+    // resize-курсор под курсором мыши, когда он над краем окна (зоной ресайза).
+    // Нужен для X11: там клиентская область — всё окно, нативного hit-testа как
+    // с WM_NCHITTEST нет, и без этого над краём оставалась стрелка. На Windows
+    // курсор над краями рисует ОС (см. Begin).
+    // Вызывается сразу после NewFrame: виджеты, нарисованные позже в этом кадре
+    // (слайдеры, разделители), всё равно смогут переопределить курсор.
+    void ImGuiLayer::ApplyWindowEdgeMouseCursor()
+    {
+#ifdef _WIN32
+        return;
+#else
+        ImGuiIO& io = ImGui::GetIO();
+
+        // Мышь над всплывающим ImGui-окном (свой platform viewport) — курсор на
+        // его совести, краёв основного окна не касаемся.
+        if (io.MouseHoveredViewport != 0 && io.MouseHoveredViewport != ImGui::GetMainViewport()->ID)
+        {
+            return;
+        }
+
+        switch (Application::Get().GetWindow().GetResizeDirectionUnderCursor())
+        {
+            case WindowResizeDirection::Left:
+            case WindowResizeDirection::Right: ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeEW); break;
+            case WindowResizeDirection::Top:
+            case WindowResizeDirection::Bottom: ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNS); break;
+            case WindowResizeDirection::TopLeft:
+            case WindowResizeDirection::BottomRight: ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNWSE); break;
+            case WindowResizeDirection::TopRight:
+            case WindowResizeDirection::BottomLeft: ImGui::SetMouseCursor(ImGuiMouseCursor_ResizeNESW); break;
+            case WindowResizeDirection::Outside: break;
+        }
+#endif
     }
 
     void ImGuiLayer::End()

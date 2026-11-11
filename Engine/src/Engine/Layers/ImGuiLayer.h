@@ -39,6 +39,9 @@ namespace LM
         void ChangeFontSize(bool _NeedUpdateFontTexture);
 
     private:
+        void ApplyWindowEdgeMouseCursor();
+
+    private:
         static inline ImGuiLayer* s_Instance = nullptr;
 
         bool m_BlockEvents = true;
