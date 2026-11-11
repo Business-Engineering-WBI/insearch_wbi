@@ -64,6 +64,10 @@ namespace LM
     {
         Ref<Project> project = Ref<Project>(new Project());
 
+        // Папка проекта — это папка, в которой лежит файл project.lmproj (из файла не читается)
+        std::filesystem::path parentPath = std::filesystem::path(_FileName).parent_path();
+        project->m_Folder = parentPath.empty() ? "." : parentPath.string();
+
         std::ifstream infile(_FileName);
         if (!infile.is_open())
         {

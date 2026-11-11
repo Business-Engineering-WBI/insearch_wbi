@@ -90,6 +90,8 @@ namespace LM
         float frameHeightOld = ImGui::GetFrameHeight();
 
         ImGui::PushStyleVarY(ImGuiStyleVar_FramePadding, kMainMenuFramePadding);
+        ImGui::PushStyleVarY(ImGuiStyleVar_ItemSpacing, kMainMenuFramePadding);
+        ImGui::PushStyleVarY(ImGuiStyleVar_WindowPadding, kMainMenuFramePadding);
         ImGui::PushStyleColor(ImGuiCol_MenuBarBg, 0xff1b1b1b);
         ImGuiWindowFlags viewportSideBarFlags = ImGuiWindowFlags_NoBackground | ImGuiWindowFlags_NoScrollbar |
                                                 ImGuiWindowFlags_NoSavedSettings | ImGuiWindowFlags_MenuBar;
@@ -227,7 +229,7 @@ namespace LM
             ImGui::End();
         }
         ImGui::PopStyleColor();
-        ImGui::PopStyleVar();
+        ImGui::PopStyleVar(3);
 
         bool opt_fullscreen = opt_fullscreen_persistant;
         static ImGuiDockNodeFlags dockspace_flags = ImGuiDockNodeFlags_None;

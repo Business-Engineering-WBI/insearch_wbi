@@ -136,7 +136,6 @@ namespace LM
     {
         return std::make_tuple(                               //
             property(&Project::m_Type, "Type", { false }),    //
-            property(&Project::m_Folder, "Folder"),           //
             property(&Project::m_Catalog, "Catalog"),         //
             property(&Project::m_VariantExcelTables, "VariantExcelTables", { false }));
     }
