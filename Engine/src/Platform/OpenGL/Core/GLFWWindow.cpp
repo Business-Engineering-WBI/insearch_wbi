@@ -26,6 +26,8 @@
     #include <X11/Xlib.h>
     #include <X11/Xutil.h>    // XClassHint
     #include <stb_image.h>
+    #include <cstdlib>
+    #include <cstring>
 #endif
 
 namespace LM
@@ -274,6 +276,29 @@ namespace LM
         constexpr int kSizeLeft = 7;
         constexpr int kMove = 8;
     }    // namespace
+
+    // Инфо о графической подсистеме текущего запуска. Бэкенд GLFW форсится в X11
+    // (см. Init), поэтому под Wayland-сессией окно работает через XWayland —
+    // это отмечаем отдельно, иначе лог всегда показывал бы просто X11.
+    void logWindowSystem()
+    {
+        const bool isWaylandBackend = (glfwGetPlatform() == GLFW_PLATFORM_WAYLAND);
+
+        // Тип сессии: XDG_SESSION_TYPE выставляет logind, WAYLAND_DISPLAY —
+        // запасной признак Wayland-сессии для сред без logind.
+        const char* sessionType = std::getenv("XDG_SESSION_TYPE");
+        const bool isWaylandSession = (sessionType != nullptr && std::strcmp(sessionType, "wayland") == 0) ||
+                                      (std::getenv("WAYLAND_DISPLAY") != nullptr);
+
+        if (!isWaylandBackend && isWaylandSession)
+        {
+            LOG_CORE_INFO("Window system: X11 (XWayland under Wayland session)");
+        }
+        else
+        {
+            LOG_CORE_INFO("Window system: {}", isWaylandBackend ? "Wayland" : "X11");
+        }
+    }
 
     // Аналог disableTitlebar(): кеширует нативные дескрипторы и рисует границу окна.
     // WM может сбросить ширину границы при reparent, поэтому это best-effort —
@@ -650,6 +675,9 @@ namespace LM
             LOG_CORE_ERROR("Failed to initialize GLFW!");
             return false;
         }
+#ifndef _WIN32
+        logWindowSystem();
+#endif
         glfwWindowHint(GLFW_OPENGL_DEBUG_CONTEXT, GLFW_TRUE);
 #ifndef _WIN32
         // Окно без рамки, но под управлением WM (GLFW ставит _MOTIF_WM_HINTS
