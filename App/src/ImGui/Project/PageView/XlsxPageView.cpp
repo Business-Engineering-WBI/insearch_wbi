@@ -50,6 +50,10 @@
 
 namespace
 {
+    // Отступы ячеек таблицы XLSX (общие для отрисовки и для расчета ширин колонок)
+    constexpr float kTableFramePaddingX = 8.0f;
+    constexpr float kTableFramePaddingY = 4.0f;
+
     std::string UpperUtf8(std::string_view _Text)
     {
         std::string str(_Text);
@@ -341,45 +345,55 @@ namespace LM
         static ImGuiTableFlags tableFlags = ImGuiTableFlags_SizingFixedFit | ImGuiTableFlags_Borders |
                                             ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollX | ImGuiTableFlags_ScrollY;
 
-        const float framePaddingX = 8.0f;
-        const float framePaddingY = 4.0f;
+        const float framePaddingX = kTableFramePaddingX;
+        const float framePaddingY = kTableFramePaddingY;
 
-        // TODO: fix with: add col width for header and for content for future select in setwidth
-        std::vector<float> headerWidths(colsCount + 1, 0.0f);
-        std::vector<float> columnWidths(colsCount + 1, 0.0f);
-        headerWidths[0] =
-            std::max(ImGui::CalcTextSize(std::to_string(tableData.size()).c_str()).x + framePaddingX * 2.0f,
-                     ImGui::CalcTextSize("  . . .  ").x);
-
-        if (tableData.size() > 0)
+        // Данные примеров конструкции нужны и для расчета ширин колонок, и для отрисовки строк
+        const ConstrExample* constrExamplePtr = nullptr;
+        size_t constrExampleRows = 0;
+        if (auto constrItem = xlsxViewData.GetItemInSimpleAddListForCurrentPage("constr");
+            constrItem.has_value() && m_IsShowConstrExamples)
         {
-            for (size_t colId = 0; colId < colsCount; ++colId)
+            constrExamplePtr = DatabaseData::Get().FindConstrExample(constrItem->get().Value);
+            if (constrExamplePtr != nullptr && !constrExamplePtr->empty())
             {
-                const auto& cellText = tableData[0][colId].Value;
-                ImVec2 cellTextSize = ImGui::CalcTextSize(std::format("  {}  ", cellText).c_str());
-                headerWidths[colId + 1] = std::max(headerWidths[colId + 1], cellTextSize.x);
-                // + ImGui::GetFontSize() * 2.0f
-                if (std::optional<const std::reference_wrapper<std::string>> extraValue =
-                        GetExtraListValue(xlsxViewData, tableData[0][colId].Value);
-                    extraValue.has_value())
-                {
-                    std::string::difference_type textOffset =
-                        std::min<std::string::difference_type>(extraValue->get().end() - extraValue->get().begin(), 64);
-                    ImVec2 extraTextSize =
-                        ImGui::CalcTextSize(extraValue->get().c_str(), extraValue->get().c_str() + textOffset);
-                    columnWidths[colId + 1] = std::max(columnWidths[colId + 1], extraTextSize.x + framePaddingX * 2.0f);
-                }
+                constrExampleRows = (*constrExamplePtr->begin()).second.size();
             }
         }
+        // После примеров (в исходном варианте) шла еще пустая строка-разделитель
+        const bool isConstrExampleShown = (constrExamplePtr != nullptr) && !constrExamplePtr->empty();
+        const size_t exampleItemsCount = constrExampleRows + (isConstrExampleShown ? 1 : 0);
 
-        for (size_t rowId = 1; rowId < tableData.size(); ++rowId)
+        // Ширины колонок кешируются и пересчитываются только при изменении данных/состояния,
+        // а не каждый кадр (раньше CalcTextSize вызывался для всех ячеек таблицы каждый кадр)
+        const TableWidthsCacheKey widthsCacheKey {
+            .ViewData = &xlsxViewData,
+            .PageId = m_PageId,
+            .Rows = tableData.size(),
+            .Cols = colsCount,
+            .HistoryPointer = pageData.GetHistoryPointer(),
+            .HistoryStates = pageData.GetHistoryStatesCount(),
+            .ShowConstrExamples = m_IsShowConstrExamples,
+            .FontSize = ImGui::GetFontSize(),
+        };
+        if (!m_IsTableWidthsCacheValid || !(m_TableWidthsCacheKey == widthsCacheKey))
+        {
+            RecomputeTableWidthsCache(xlsxViewData, tableData, constrExamplePtr);
+            m_TableWidthsCacheKey = widthsCacheKey;
+            m_IsTableWidthsCacheValid = true;
+        }
+        const std::vector<float>& headerWidths = m_TableWidthsCache.HeaderWidths;
+        std::vector<float>& columnWidths = m_TableWidthsCache.ColumnWidths;
+
+        // Дополнительные (серые) значения по колонкам — один раз за кадр, вместо запроса на каждую ячейку.
+        // (optional<const reference_wrapper<...>> не поддерживает присваивание — только конструирование)
+        std::vector<std::optional<const std::reference_wrapper<std::string>>> extraValues;
+        extraValues.reserve(colsCount);
+        if (!tableData.empty())
         {
             for (size_t colId = 0; colId < colsCount; ++colId)
             {
-                const auto& cellText = tableData[rowId][colId].Value;
-                float cellTextSize = ImGui::CalcTextSize(cellText.c_str()).x + ImGui::CalcTextSize(" ").x;
-                columnWidths[colId + 1] = std::max(columnWidths[colId + 1], cellTextSize + framePaddingX * 2.0f);
-                // + ImGui::GetFontSize() * 2.0f
+                extraValues.push_back(GetExtraListValue(xlsxViewData, tableData[0][colId].Value));
             }
         }
 
@@ -409,188 +423,83 @@ namespace LM
             DrawTableHeaderReturn headerData = DrawTableHeader(colsCount, xlsxViewData, tableData);
             ImGui::PopStyleVar();
 
-            auto constrItem = xlsxViewData.GetItemInSimpleAddListForCurrentPage("constr");
-            if (constrItem.has_value() && m_IsShowConstrExamples)
-            {
-                const auto& constr = constrItem->get().Value;
-                const ConstrExample* constrExamplePtr = DatabaseData::Get().FindConstrExample(constr);
-                if (constrExamplePtr && !constrExamplePtr->empty())
-                {
-                    const ConstrExample& constrExample = *constrExamplePtr;
-                    size_t rowsCount = (*constrExample.begin()).second.size();
-
-                    ImGui::PushStyleColor(ImGuiCol_TableRowBg, 0x0a00ff00);
-                    ImGui::PushStyleColor(ImGuiCol_TableRowBgAlt, 0x1900ff00);
-                    for (size_t rowId = 1; rowId <= rowsCount; ++rowId)
-                    {
-                        ImGui::TableNextRow();
-                        ImGui::PushID(-static_cast<int>(rowId));
-                        ImGui::TableSetColumnIndex(static_cast<int>(0));
-                        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, { framePaddingX, framePaddingY });
-                        ImGui::Button("##RowId", ImVec2(std::max(headerWidths[0], columnWidths[0]), 0.0f));
-                        ImGui::PopStyleVar();
-
-                        for (size_t colId = 0; colId < colsCount; ++colId)
-                        {
-                            ImGui::PushID(static_cast<int>(colId));
-                            ImGui::TableSetColumnIndex(static_cast<int>(colId + 1));
-
-                            const std::string& header = tableData[0][colId].Value;
-                            if (constrExample.contains(header))
-                            {
-                                ImGui::Text("  %s  ", constrExample.at(header)[rowId - 1].c_str());
-                                float cellTextSize =
-                                    ImGui::CalcTextSize(constrExample.at(header)[rowId - 1].c_str()).x +
-                                    ImGui::CalcTextSize("    ").x;
-                                columnWidths[colId + 1] = std::max(columnWidths[colId + 1], cellTextSize);
-                            }
-
-                            ImGui::PopID();
-                        }
-                        ImGui::PopID();
-                    }
-                    ImGui::TableNextRow();
-                    ImGui::PopStyleColor(2);
-                }
-            }
+            // Область выделения считается один раз за кадр, а не на каждую ячейку.
+            // Важно: до сброса m_IsAnyCellActive — как и раньше, во время
+            // редактирования ячейки выделение не подсвечивается
+            const SelectionRegion selectionRegion = GetSelectionRegion(tableData, false);
 
             m_IsAnyCellActive = false;
             ImDrawList* draw_list = ImGui::GetWindowDrawList();
-            for (size_t rowId = 1; rowId < tableData.size(); ++rowId)
+
+            // Отрисовываются только видимые строки (раньше каждый кадр отправлялись все строки таблицы)
+            const int exampleItems = static_cast<int>(exampleItemsCount);
+            const int dataRowsCount = (tableData.size() > 0) ? static_cast<int>(tableData.size()) - 1 : 0;
+
+            ImGuiListClipper rowsClipper;
+            rowsClipper.Begin(exampleItems + dataRowsCount);
+
+            // Строка выбранной ячейки не должна отсекаться клиппером: иначе при прокрутке
+            // во время редактирования теряется состояние виджета и событие
+            // IsItemDeactivatedAfterEdit (перестает сохраняться история правок)
+            if (m_SelectedCell.has_value() && m_SelectedCell->y >= 1 &&
+                static_cast<int>(m_SelectedCell->y) - 1 < dataRowsCount)
             {
-                ImGui::TableNextRow();
-                ImGui::PushID(static_cast<int>(rowId));
-                ImGui::TableSetColumnIndex(static_cast<int>(0));
+                rowsClipper.IncludeItemByIndex(exampleItems + static_cast<int>(m_SelectedCell->y) - 1);
+            }
+            if (m_SelectedRow.has_value() && *m_SelectedRow >= 1 &&
+                static_cast<int>(*m_SelectedRow) - 1 < dataRowsCount)
+            {
+                rowsClipper.IncludeItemByIndex(exampleItems + static_cast<int>(*m_SelectedRow) - 1);
+            }
 
-                bool isRowHovered = false;
-                std::string rowIdStr = std::format("{}##RowId", rowId);
-
-                ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, { framePaddingX, framePaddingY });
-                ImGui::Button(rowIdStr.c_str(), ImVec2(std::max(headerWidths[0], columnWidths[0]), 0.0f));
-                ImGui::PopStyleVar();
-
-                if (ImGui::IsItemHovered())
+            while (rowsClipper.Step())
+            {
+                for (int itemIdx = rowsClipper.DisplayStart; itemIdx < rowsClipper.DisplayEnd; ++itemIdx)
                 {
-                    isRowHovered = true;
-                    // ImGui::SetTooltip("Right-click to open popup");
-                }
-
-                if (ImGui::IsItemFocused())
-                {
-                    UnSelectAll();
-                    m_SelectedRow = rowId;
-                }
-
-                if (ImGui::BeginPopupContextItem(rowIdStr.c_str()))
-                {
-                    ImGui::Text("This a popup for Row:%zu", rowId);
-                    if (ImGui::Button("Close"))
+                    if (itemIdx < exampleItems)
                     {
-                        ImGui::CloseCurrentPopup();
+                        DrawConstrExampleItem(static_cast<size_t>(itemIdx), constrExampleRows, *constrExamplePtr,
+                                              colsCount, tableData);
+                        continue;
                     }
-                    ImGui::EndPopup();
-                }
 
-                for (size_t colId = 0; colId < colsCount; ++colId)
-                {
-                    ImGui::PushID(static_cast<int>(colId));
-                    ImGui::TableSetColumnIndex(static_cast<int>(colId + 1));
+                    const size_t rowId = static_cast<size_t>(itemIdx - exampleItems) + 1;
+                    if (rowId >= tableData.size())
+                    {
+                        // Таблица могла измениться во время отрисовки заголовка (например,
+                        // вставка из буфера в контекстном меню) — актуальные размеры
+                        // будут подхвачены в следующем кадре
+                        continue;
+                    }
+                    // Защита от изменения числа колонок во время отрисовки заголовка
+                    const size_t rowColsCount = std::min(colsCount, tableData[rowId].size());
 
-                    auto& t = tableData[rowId][colId].Value;
-                    bool isColHovered = headerData.HoveredCol.has_value() && headerData.HoveredCol.value() == colId;
+                    ImGui::TableNextRow();
+                    ImGui::PushID(static_cast<int>(rowId));
+                    ImGui::TableSetColumnIndex(static_cast<int>(0));
 
-                    PushCellFrameBgColor(tableData, isRowHovered, isColHovered, rowId, colId);
+                    bool isRowHovered = false;
+                    std::string rowIdStr = std::format("{}##RowId", rowId);
+
                     ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, { framePaddingX, framePaddingY });
-
-                    float width = std::max(headerWidths[colId + 1], columnWidths[colId + 1]);
-
-                    if (std::optional<const std::reference_wrapper<std::string>> extraValue =
-                            GetExtraListValue(xlsxViewData, tableData[0][colId].Value);
-                        extraValue.has_value())
-                    {
-                        ImVec2 cursorPos = ImGui::GetCursorScreenPos();
-                        ImVec4 clipRect(cursorPos.x + framePaddingX, cursorPos.y + framePaddingY,
-                                        cursorPos.x + width - framePaddingX,
-                                        cursorPos.y + ImGui::GetFontSize() + framePaddingY);
-                        const ImVec2 textPos = ImVec2(cursorPos.x + framePaddingX, cursorPos.y + framePaddingY);
-                        draw_list->AddText(ImGui::GetFont(), ImGui::GetFontSize(), textPos, 0xFF666666,
-                                           extraValue->get().c_str(), NULL, 0.0f, &clipRect);
-                    }
-
-                    ImGui::SetNextItemWidth(width);
-                    ImGui::InputText("##Input", &t, ImGuiInputTextFlags_NoHorizontalScroll);
+                    ImGui::Button(rowIdStr.c_str(), ImVec2(std::max(headerWidths[0], columnWidths[0]), 0.0f));
                     ImGui::PopStyleVar();
-                    ImGui::PopStyleColor();
 
-                    ImGuiIO& io = ImGui::GetIO();
-
-                    if (ImGui::IsItemFocused() && !ImGui::IsItemActive() && !io.InputQueueCharacters.empty())
+                    if (ImGui::IsItemHovered())
                     {
-                        // TODO:: may need to clear buffer
-                        for (unsigned short c : io.InputQueueCharacters)
-                        {
-                            if (c >= 32)
-                            {
-                                t.push_back((char)c);
-                            }
-                        }
-                        io.InputQueueCharacters.resize(0);
-
-                        ImGui::ActivateItemByID(ImGui::GetItemID());
-                    }
-
-                    if (ImGui::IsItemActivated() && ImGui::IsItemEdited() == false)
-                    {
-                        ImGuiInputTextState* state = ImGui::GetInputTextState(ImGui::GetItemID());
-                        if (state)
-                        {
-                            state->CursorAnimReset();    // сброс мигания
-                            state->CursorClamp();        // убедиться, что курсор в допустимых границах
-                            state->ClearSelection();
-                        }
-                    }
-
-                    if (ImGui::IsItemActive())
-                    {
-                        m_IsAnyCellActive = true;
-                    }
-                    if (ImGui::IsItemDeactivatedAfterEdit())
-                    {
-                        PushHistory(xlsxViewData);
-                    }
-
-                    if (ImGui::IsItemFocused() && ImGui::IsKeyPressed(ImGuiKey_F2))
-                    {
-                        ImGui::ActivateItemByID(ImGui::GetItemID());
-                    }
-
-                    if (ImGui::IsItemActive() || ImGui::IsItemFocused())
-                    {
-                        if (!m_SelectedCell.has_value() || (m_SelectedCell->x != colId) || (m_SelectedCell->y != rowId))
-                        {
-                            UnSelectAll();
-                            m_SelectedCell = { colId, rowId };
-                        }
-                    }
-                    if (ImGui::IsItemHovered() && ImGui::IsMouseDown(ImGuiMouseButton_Middle))
-                    {
-                        if (ImGui::GetIO().KeyShift && m_SelectedCell.has_value())
-                        {
-                            m_ExtraSelectedCell = { colId, rowId };
-                        }
-                        else
-                        {
-                            UnSelectAll();
-                            m_SelectedCell = { colId, rowId };
-                            ImGui::ClearActiveID();
-                            ImGui::SetFocusID(ImGui::GetItemID(), ImGui::GetCurrentWindow());
-                            ImGui::SetWindowFocus();
-                        }
+                        isRowHovered = true;
                         // ImGui::SetTooltip("Right-click to open popup");
                     }
-                    if (ImGui::BeginPopupContextItem())
+
+                    if (ImGui::IsItemFocused())
                     {
-                        ImGui::Text("This a popup for Col: %zu Row:%zu", colId, rowId);
+                        UnSelectAll();
+                        m_SelectedRow = rowId;
+                    }
+
+                    if (ImGui::BeginPopupContextItem(rowIdStr.c_str()))
+                    {
+                        ImGui::Text("This a popup for Row:%zu", rowId);
                         if (ImGui::Button("Close"))
                         {
                             ImGui::CloseCurrentPopup();
@@ -598,9 +507,124 @@ namespace LM
                         ImGui::EndPopup();
                     }
 
+                    for (size_t colId = 0; colId < rowColsCount; ++colId)
+                    {
+                        ImGui::PushID(static_cast<int>(colId));
+                        ImGui::TableSetColumnIndex(static_cast<int>(colId + 1));
+
+                        auto& t = tableData[rowId][colId].Value;
+                        bool isColHovered =
+                            headerData.HoveredCol.has_value() && headerData.HoveredCol.value() == colId;
+
+                        PushCellFrameBgColor(tableData, isRowHovered, isColHovered, rowId, colId, selectionRegion);
+                        ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, { framePaddingX, framePaddingY });
+
+                        float width = std::max(headerWidths[colId + 1], columnWidths[colId + 1]);
+
+                        if (const auto& extraValue = extraValues[colId]; extraValue.has_value())
+                        {
+                            ImVec2 cursorPos = ImGui::GetCursorScreenPos();
+                            ImVec4 clipRect(cursorPos.x + framePaddingX, cursorPos.y + framePaddingY,
+                                            cursorPos.x + width - framePaddingX,
+                                            cursorPos.y + ImGui::GetFontSize() + framePaddingY);
+                            const ImVec2 textPos = ImVec2(cursorPos.x + framePaddingX, cursorPos.y + framePaddingY);
+                            draw_list->AddText(ImGui::GetFont(), ImGui::GetFontSize(), textPos, 0xFF666666,
+                                               extraValue->get().c_str(), NULL, 0.0f, &clipRect);
+                        }
+
+                        ImGui::SetNextItemWidth(width);
+                        ImGui::InputText("##Input", &t, ImGuiInputTextFlags_NoHorizontalScroll);
+                        ImGui::PopStyleVar();
+                        ImGui::PopStyleColor();
+
+                        ImGuiIO& io = ImGui::GetIO();
+
+                        if (ImGui::IsItemFocused() && !ImGui::IsItemActive() && !io.InputQueueCharacters.empty())
+                        {
+                            // TODO:: may need to clear buffer
+                            for (unsigned short c : io.InputQueueCharacters)
+                            {
+                                if (c >= 32)
+                                {
+                                    t.push_back((char)c);
+                                }
+                            }
+                            io.InputQueueCharacters.resize(0);
+
+                            ImGui::ActivateItemByID(ImGui::GetItemID());
+                        }
+
+                        if (ImGui::IsItemActivated() && ImGui::IsItemEdited() == false)
+                        {
+                            ImGuiInputTextState* state = ImGui::GetInputTextState(ImGui::GetItemID());
+                            if (state)
+                            {
+                                state->CursorAnimReset();    // сброс мигания
+                                state->CursorClamp();        // убедиться, что курсор в допустимых границах
+                                state->ClearSelection();
+                            }
+                        }
+
+                        if (ImGui::IsItemEdited())
+                        {
+                            // Живое обновление ширины колонки во время ввода; полный
+                            // пересчет кеша произойдет после завершения редактирования
+                            RecomputeColumnWidth(colId, tableData, extraValues[colId], constrExamplePtr);
+                        }
+
+                        if (ImGui::IsItemActive())
+                        {
+                            m_IsAnyCellActive = true;
+                        }
+                        if (ImGui::IsItemDeactivatedAfterEdit())
+                        {
+                            PushHistory(xlsxViewData);
+                        }
+
+                        if (ImGui::IsItemFocused() && ImGui::IsKeyPressed(ImGuiKey_F2))
+                        {
+                            ImGui::ActivateItemByID(ImGui::GetItemID());
+                        }
+
+                        if (ImGui::IsItemActive() || ImGui::IsItemFocused())
+                        {
+                            if (!m_SelectedCell.has_value() || (m_SelectedCell->x != colId) ||
+                                (m_SelectedCell->y != rowId))
+                            {
+                                UnSelectAll();
+                                m_SelectedCell = { colId, rowId };
+                            }
+                        }
+                        if (ImGui::IsItemHovered() && ImGui::IsMouseDown(ImGuiMouseButton_Middle))
+                        {
+                            if (ImGui::GetIO().KeyShift && m_SelectedCell.has_value())
+                            {
+                                m_ExtraSelectedCell = { colId, rowId };
+                            }
+                            else
+                            {
+                                UnSelectAll();
+                                m_SelectedCell = { colId, rowId };
+                                ImGui::ClearActiveID();
+                                ImGui::SetFocusID(ImGui::GetItemID(), ImGui::GetCurrentWindow());
+                                ImGui::SetWindowFocus();
+                            }
+                            // ImGui::SetTooltip("Right-click to open popup");
+                        }
+                        if (ImGui::BeginPopupContextItem())
+                        {
+                            ImGui::Text("This a popup for Col: %zu Row:%zu", colId, rowId);
+                            if (ImGui::Button("Close"))
+                            {
+                                ImGui::CloseCurrentPopup();
+                            }
+                            ImGui::EndPopup();
+                        }
+
+                        ImGui::PopID();
+                    }
                     ImGui::PopID();
                 }
-                ImGui::PopID();
             }
             ImGui::EndTable();
         }
@@ -770,6 +794,7 @@ namespace LM
                         simpleAddList.try_emplace(fieldName);
                         simpleAddList[fieldName].push_back({ { { _XlsxViewData.GetCurrentPageId() } }, constr.Key });
                         _XlsxViewData.SaveExtraInfoJson();
+                        InvalidateTableWidthsCache();
 
                         ImGui::CloseCurrentPopup();
                     }
@@ -862,6 +887,7 @@ namespace LM
                         if (ImGui::Selectable(std::format("{}\n{}", fieldDescr.Description, fieldName).c_str(), false))
                         {
                             globalAddList[fieldName] = "";
+                            InvalidateTableWidthsCache();
                             m_ExtraInfoAutoFocusField = ExtraInfoAutoFocusField {
                                 .WindowName = windowName,
                                 .Field = fieldName,
@@ -892,6 +918,7 @@ namespace LM
             if (!toDeleteName.empty())
             {
                 globalAddList.erase(toDeleteName);
+                InvalidateTableWidthsCache();
             }
         }
         ImGui::End();
@@ -1106,6 +1133,7 @@ namespace LM
                     {
                         _SimpleList.try_emplace(fieldName);
                         _SimpleList[fieldName].push_back({ { { _XlsxViewData.GetCurrentPageId() } }, {} });
+                        InvalidateTableWidthsCache();
                         m_ExtraInfoAutoFocusField = ExtraInfoAutoFocusField {
                             .WindowName = _WindowName.data(),
                             .Field = fieldName,
@@ -1136,6 +1164,7 @@ namespace LM
                             {
                                 sharedPages.push_back(_XlsxViewData.GetCurrentPageId());
                                 std::ranges::sort(sharedPages);
+                                InvalidateTableWidthsCache();
                                 fieldsFilter.Clear();
                                 ImGui::CloseCurrentPopup();
                                 _XlsxViewData.SaveExtraInfoJson();
@@ -1162,6 +1191,10 @@ namespace LM
             ImGui::EndPopup();
         }
 
+        if (!toDeleteName.empty())
+        {
+            InvalidateTableWidthsCache();
+        }
         _XlsxViewData.DeleteFromSimpleListForCurrentPage(_SimpleList, toDeleteName);
     }
 
@@ -1824,15 +1857,16 @@ namespace LM
     }
 
     void XlsxPageView::PushCellFrameBgColor(XlsxPageViewDataTypes::TableData& _TableData, bool _IsRowHovered,
-                                            bool _IsColHovered, size_t _RowId, size_t _ColId)
+                                            bool _IsColHovered, size_t _RowId, size_t _ColId,
+                                            const SelectionRegion& _SelectionRegion)
     {
         float frameBgAlpha = 0.0;
         float frameBgBlue = 0.0f;
 
         bool isHovered = _IsRowHovered || _IsColHovered;
 
-        // TODO: move GetSelectionRegion upper for optimization
-        bool isSelected = IsInSelectionRegion(GetSelectionRegion(_TableData, false), _RowId, _ColId);
+        // Область выделения передается готовой (считается один раз за кадр в DrawWindowContent)
+        bool isSelected = IsInSelectionRegion(_SelectionRegion, _RowId, _ColId);
 
         // Check if the cell is selected
         if (isSelected && isHovered)
@@ -1905,6 +1939,13 @@ namespace LM
 
         for (size_t colId = 0; colId < _ColsCount; ++colId)
         {
+            if (colId >= _TableData[0].size())
+            {
+                // Заголовки могли измениться во время отрисовки попапа
+                // (например, "Разделить столбцы по пробелу")
+                break;
+            }
+
             ImGui::PushID(static_cast<int>(colId));
             ImGui::TableSetColumnIndex(static_cast<int>(colId + 1));
 
@@ -1970,6 +2011,13 @@ namespace LM
                     ImGui::SetKeyboardFocusHere();
                 }
                 ImGui::InputText("Имя заголовка##HeaderInput", &t);
+                if (ImGui::IsItemEdited() && (colId + 1 < m_TableWidthsCache.HeaderWidths.size()))
+                {
+                    // Живое обновление ширины заголовка во время ввода
+                    // (полный пересчет кеша произойдет после завершения редактирования)
+                    m_TableWidthsCache.HeaderWidths[colId + 1] =
+                        ImGui::CalcTextSize(std::format("  {}  ", t).c_str()).x;
+                }
                 if (ImGui::IsItemDeactivatedAfterEdit())
                 {
                     PushHistory(_XlsxViewData);
@@ -2126,6 +2174,135 @@ namespace LM
         }
 
         return std::nullopt;
+    }
+
+    void XlsxPageView::RecomputeColumnWidth(size_t _ColId, XlsxPageViewDataTypes::TableData& _TableData,
+                                            const std::optional<const std::reference_wrapper<std::string>>& _ExtraValue,
+                                            const ConstrExample* _ConstrExample)
+    {
+        if (_ColId + 1 >= m_TableWidthsCache.ColumnWidths.size())
+        {
+            return;
+        }
+
+        // Повторяет прежний ежекадровый расчет: максимум из ширины дополнительного
+        // значения (первые 64 символа), всех ячеек данных и примеров конструкции
+        float width = 0.0f;
+
+        if (_ExtraValue.has_value())
+        {
+            const std::string& extraStr = _ExtraValue->get();
+            const std::string::difference_type textOffset =
+                std::min<std::string::difference_type>(extraStr.end() - extraStr.begin(), 64);
+            width = std::max(width, ImGui::CalcTextSize(extraStr.c_str(), extraStr.c_str() + textOffset).x +
+                                        kTableFramePaddingX * 2.0f);
+        }
+
+        const float spaceWidth = ImGui::CalcTextSize(" ").x;
+        for (size_t rowId = 1; rowId < _TableData.size(); ++rowId)
+        {
+            if (_ColId >= _TableData[rowId].size())
+            {
+                continue;
+            }
+            width = std::max(width, ImGui::CalcTextSize(_TableData[rowId][_ColId].Value.c_str()).x + spaceWidth +
+                                        kTableFramePaddingX * 2.0f);
+        }
+
+        if ((_ConstrExample != nullptr) && !_TableData.empty() && (_ColId < _TableData[0].size()))
+        {
+            const std::string& header = _TableData[0][_ColId].Value;
+            if (auto exampleIt = _ConstrExample->find(header); exampleIt != _ConstrExample->end())
+            {
+                const float fourSpacesWidth = ImGui::CalcTextSize("    ").x;
+                for (const std::string& exampleValue : exampleIt->second)
+                {
+                    width = std::max(width, ImGui::CalcTextSize(exampleValue.c_str()).x + fourSpacesWidth);
+                }
+            }
+        }
+
+        m_TableWidthsCache.ColumnWidths[_ColId + 1] = width;
+    }
+
+    void XlsxPageView::RecomputeTableWidthsCache(XlsxPageViewData& _XlsxViewData,
+                                                 XlsxPageViewDataTypes::TableData& _TableData,
+                                                 const ConstrExample* _ConstrExample)
+    {
+        const size_t colsCount = _TableData.empty() ? 0 : _TableData[0].size();
+
+        std::vector<float>& headerWidths = m_TableWidthsCache.HeaderWidths;
+        headerWidths.assign(colsCount + 1, 0.0f);
+        m_TableWidthsCache.ColumnWidths.assign(colsCount + 1, 0.0f);
+
+        headerWidths[0] = std::max(
+            ImGui::CalcTextSize(std::to_string(_TableData.size()).c_str()).x + kTableFramePaddingX * 2.0f,
+            ImGui::CalcTextSize("  . . .  ").x);
+
+        if (_TableData.empty())
+        {
+            return;
+        }
+
+        for (size_t colId = 0; colId < colsCount; ++colId)
+        {
+            const std::string& headerText = _TableData[0][colId].Value;
+            headerWidths[colId + 1] = ImGui::CalcTextSize(std::format("  {}  ", headerText).c_str()).x;
+            RecomputeColumnWidth(colId, _TableData, GetExtraListValue(_XlsxViewData, headerText), _ConstrExample);
+        }
+    }
+
+    void XlsxPageView::DrawConstrExampleItem(size_t _ItemIdx, size_t _ExampleRowsCount,
+                                             const ConstrExample& _ConstrExample, size_t _ColsCount,
+                                             XlsxPageViewDataTypes::TableData& _TableData)
+    {
+        const std::vector<float>& headerWidths = m_TableWidthsCache.HeaderWidths;
+        const std::vector<float>& columnWidths = m_TableWidthsCache.ColumnWidths;
+
+        ImGui::PushStyleColor(ImGuiCol_TableRowBg, 0x0a00ff00);
+        ImGui::PushStyleColor(ImGuiCol_TableRowBgAlt, 0x1900ff00);
+
+        if (_ItemIdx < _ExampleRowsCount)
+        {
+            const size_t rowId = _ItemIdx + 1;
+
+            ImGui::TableNextRow();
+            ImGui::PushID(-static_cast<int>(rowId));
+            ImGui::TableSetColumnIndex(static_cast<int>(0));
+            ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, { kTableFramePaddingX, kTableFramePaddingY });
+            ImGui::Button("##RowId", ImVec2(std::max(headerWidths[0], columnWidths[0]), 0.0f));
+            ImGui::PopStyleVar();
+
+            // Защита от изменения таблицы во время отрисовки заголовка
+            const size_t colsCount =
+                std::min(_ColsCount, _TableData.empty() ? 0 : _TableData[0].size());
+
+            for (size_t colId = 0; colId < colsCount; ++colId)
+            {
+                ImGui::PushID(static_cast<int>(colId));
+                ImGui::TableSetColumnIndex(static_cast<int>(colId + 1));
+
+                const std::string& header = _TableData[0][colId].Value;
+                if (auto exampleIt = _ConstrExample.find(header); exampleIt != _ConstrExample.end())
+                {
+                    const std::vector<std::string>& values = exampleIt->second;
+                    if (rowId - 1 < values.size())
+                    {
+                        ImGui::Text("  %s  ", values[rowId - 1].c_str());
+                    }
+                }
+
+                ImGui::PopID();
+            }
+            ImGui::PopID();
+        }
+        else
+        {
+            // Пустая строка-разделитель между примерами и данными таблицы (сохраняет прежний порядок строк)
+            ImGui::TableNextRow();
+        }
+
+        ImGui::PopStyleColor(2);
     }
 
     std::string XlsxPageView::GetRawImgFilename(XlsxPageViewData& _XlsxViewData, std::string_view _Filetype)

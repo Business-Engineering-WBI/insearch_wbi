@@ -84,6 +84,11 @@ namespace LM
         bool IsLoaded() const { return m_IsLoaded; }
 
         int GetPageId() const { return m_PageId; }
+
+        // Идентификаторы состояния истории: меняются при любой мутации данных
+        // (PushHistory/Undo/Redo) — используются для инвалидации кешей во вью
+        size_t GetHistoryPointer() const { return m_HistoryPointer; }
+        size_t GetHistoryStatesCount() const { return m_HistoryState.size(); }
         const std::filesystem::path& GetPageFilename() const { return m_PageFilename; }
         XlsxPageViewDataTypes::TableData& GetTableData() { return m_TableData; }
 

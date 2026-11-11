@@ -39,6 +39,28 @@ namespace LM
             std::string Field;
         };
 
+        // Ключ кеша ширин колонок: пересчет ширин выполняется только при его изменении,
+        // а не каждый кадр (иначе CalcTextSize вызывается для всех ячеек таблицы ежекадрово)
+        struct TableWidthsCacheKey
+        {
+            const void* ViewData = nullptr;    // адрес XlsxPageViewData (защита от смены проекта)
+            int PageId = -1;
+            size_t Rows = 0;
+            size_t Cols = 0;
+            size_t HistoryPointer = 0;    // меняется при PushHistory/Undo/Redo
+            size_t HistoryStates = 0;
+            bool ShowConstrExamples = false;
+            float FontSize = 0.0f;
+
+            bool operator==(const TableWidthsCacheKey&) const = default;
+        };
+
+        struct TableWidthsCache
+        {
+            std::vector<float> HeaderWidths;    // [0] - колонка номеров строк, [colId + 1] - заголовки
+            std::vector<float> ColumnWidths;    // [0] не используется, [colId + 1] - данные колонок
+        };
+
     public:
         XlsxPageView();
         virtual ~XlsxPageView();
@@ -88,10 +110,19 @@ namespace LM
         void HandleImGuiEvents(XlsxPageViewData& _XlsxViewData, XlsxPageViewDataTypes::TableData& _TableData);
 
         void PushCellFrameBgColor(XlsxPageViewDataTypes::TableData& _TableData, bool _IsRowHovered, bool _IsColHovered,
-                                  size_t _RowId, size_t _ColId);
+                                  size_t _RowId, size_t _ColId, const SelectionRegion& _SelectionRegion);
 
         DrawTableHeaderReturn DrawTableHeader(size_t _ColsCount, XlsxPageViewData& _XlsxViewData,
                                               XlsxPageViewDataTypes::TableData& _TableData);
+        void DrawConstrExampleItem(size_t _ItemIdx, size_t _ExampleRowsCount, const ConstrExample& _ConstrExample,
+                                   size_t _ColsCount, XlsxPageViewDataTypes::TableData& _TableData);
+
+        void InvalidateTableWidthsCache() { m_IsTableWidthsCacheValid = false; }
+        void RecomputeTableWidthsCache(XlsxPageViewData& _XlsxViewData, XlsxPageViewDataTypes::TableData& _TableData,
+                                       const ConstrExample* _ConstrExample);
+        void RecomputeColumnWidth(size_t _ColId, XlsxPageViewDataTypes::TableData& _TableData,
+                                  const std::optional<const std::reference_wrapper<std::string>>& _ExtraValue,
+                                  const ConstrExample* _ConstrExample);
         void DrawTableHeaderRowContextMenu(XlsxPageViewData& _XlsxViewData,
                                            XlsxPageViewDataTypes::TableData& _TableData);
 
@@ -177,6 +208,10 @@ namespace LM
         bool m_IsFindAndReplaceModalOpen = false;
 
         bool m_IsShowConstrExamples = false;
+
+        TableWidthsCache m_TableWidthsCache;
+        TableWidthsCacheKey m_TableWidthsCacheKey;
+        bool m_IsTableWidthsCacheValid = false;
 
         std::string m_TMP_SkippedBgRemoveImgNames;
     };
