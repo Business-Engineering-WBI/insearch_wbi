@@ -8,56 +8,112 @@
 namespace LM
 {
 
+    std::filesystem::path ProjectVariantExcelTablesHelpers::GetRelativeBasePath() const
+    {
+        return "data/excel/";
+    }
+
+    std::filesystem::path ProjectVariantExcelTablesHelpers::GetRelativeXlsxStartupPath() const
+    {
+        return "data/excel/xlsx_startup/";
+    }
+
+    std::filesystem::path ProjectVariantExcelTablesHelpers::GetRelativeXlsxAddExtraInfoPath() const
+    {
+        return "data/excel/xlsx_add_info/";
+    }
+
+    std::filesystem::path ProjectVariantExcelTablesHelpers::GetRelativeXlsxAddExtraInfoWithProcessedImagesPath() const
+    {
+        return "data/excel/xlsx_add_info_with_processed_images/";
+    }
+
+    std::filesystem::path
+    ProjectVariantExcelTablesHelpers::GetRelativeXlsxForServerImportPath(std::string_view _ParserName) const
+    {
+        return std::format("data/excel/xlsx_for_server_import{}/",
+                           _ParserName == kAddExtraInfoWbiToolsParser ? "" : "_yg1-shop");
+    }
+
+    std::filesystem::path ProjectVariantExcelTablesHelpers::GetRelativeImgsPerPagePath() const
+    {
+        return "data/excel/img_per_page/";
+    }
+
+    std::filesystem::path ProjectVariantExcelTablesHelpers::GetRelativeImgsSimpleRulePath() const
+    {
+        return "data/excel/img_simple_rule/";
+    }
+
+    std::filesystem::path ProjectVariantExcelTablesHelpers::GetRelativeImgsNoConditionPath() const
+    {
+        return "data/excel/img_no_condition/";
+    }
+
+    std::filesystem::path ProjectVariantExcelTablesHelpers::GetRelativeImgsProcessedPath() const
+    {
+        return "data/excel/img_processed/";
+    }
+
+    std::filesystem::path ProjectVariantExcelTablesHelpers::GetRelativeJsonPrevProcessedImagesFilePath() const
+    {
+        return "data/excel/prev_imgs_hash_and_map.json";
+    }
+
+    std::filesystem::path ProjectVariantExcelTablesHelpers::GetRelativeExtraInfoJsonPath() const
+    {
+        return GetRelativeBasePath() / kExtraInfoFile;
+    }
+
     std::filesystem::path ProjectVariantExcelTablesHelpers::GetBasePath() const
     {
-        return m_Owner->GetPathInFolderAndCreateDirs("data/excel/");
+        return m_Owner->GetPathInFolderAndCreateDirs(GetRelativeBasePath().string());
     }
 
     std::filesystem::path ProjectVariantExcelTablesHelpers::GetXlsxStartupPath() const
     {
-        return m_Owner->GetPathInFolderAndCreateDirs("data/excel/xlsx_startup/");
+        return m_Owner->GetPathInFolderAndCreateDirs(GetRelativeXlsxStartupPath().string());
     }
 
     std::filesystem::path ProjectVariantExcelTablesHelpers::GetXlsxAddExtraInfoPath() const
     {
-        return m_Owner->GetPathInFolderAndCreateDirs("data/excel/xlsx_add_info/");
+        return m_Owner->GetPathInFolderAndCreateDirs(GetRelativeXlsxAddExtraInfoPath().string());
     }
 
     std::filesystem::path ProjectVariantExcelTablesHelpers::GetXlsxAddExtraInfoWithProcessedImagesPath() const
     {
-        return m_Owner->GetPathInFolderAndCreateDirs("data/excel/xlsx_add_info_with_processed_images/");
+        return m_Owner->GetPathInFolderAndCreateDirs(GetRelativeXlsxAddExtraInfoWithProcessedImagesPath().string());
     }
 
     std::filesystem::path
     ProjectVariantExcelTablesHelpers::GetXlsxForServerImportPath(std::string_view _ParserName) const
     {
-        return m_Owner->GetPathInFolderAndCreateDirs(std::format(
-            "data/excel/xlsx_for_server_import{}/", _ParserName == kAddExtraInfoWbiToolsParser ? "" : "_yg1-shop"));
+        return m_Owner->GetPathInFolderAndCreateDirs(GetRelativeXlsxForServerImportPath(_ParserName).string());
     }
 
     std::filesystem::path ProjectVariantExcelTablesHelpers::GetImgsPerPagePath() const
     {
-        return m_Owner->GetPathInFolderAndCreateDirs("data/excel/img_per_page/");
+        return m_Owner->GetPathInFolderAndCreateDirs(GetRelativeImgsPerPagePath().string());
     }
 
     std::filesystem::path ProjectVariantExcelTablesHelpers::GetImgsSimpleRulePath() const
     {
-        return m_Owner->GetPathInFolderAndCreateDirs("data/excel/img_simple_rule/");
+        return m_Owner->GetPathInFolderAndCreateDirs(GetRelativeImgsSimpleRulePath().string());
     }
 
     std::filesystem::path ProjectVariantExcelTablesHelpers::GetImgsNoConditionPath() const
     {
-        return m_Owner->GetPathInFolderAndCreateDirs("data/excel/img_no_condition/");
+        return m_Owner->GetPathInFolderAndCreateDirs(GetRelativeImgsNoConditionPath().string());
     }
 
     std::filesystem::path ProjectVariantExcelTablesHelpers::GetImgsProcessedPath() const
     {
-        return m_Owner->GetPathInFolderAndCreateDirs("data/excel/img_processed/");
+        return m_Owner->GetPathInFolderAndCreateDirs(GetRelativeImgsProcessedPath().string());
     }
 
     std::filesystem::path ProjectVariantExcelTablesHelpers::GetJsonPrevProcessedImagesFilePath() const
     {
-        return m_Owner->GetPathInFolder("data/excel/prev_imgs_hash_and_map.json");
+        return m_Owner->GetPathInFolder(GetRelativeJsonPrevProcessedImagesFilePath().string());
     }
 
     void ProjectVariantExcelTables::TogglePageNameToSkipOnServerImport(const std::string& pageName)

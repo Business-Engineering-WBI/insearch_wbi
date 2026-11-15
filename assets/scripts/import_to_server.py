@@ -4,7 +4,7 @@ import os
 import pandas as pd
 import pydantic
 from base import (DEFAULT_CONNECTION_CONFIG_PATH, ArgsBase, import_connection_config, interp_model, log_info_to_cpp,
-                  log_space_to_cpp, log_trace_to_cpp, log_warning_to_cpp, start_program)
+                  log_space_to_cpp, log_trace_to_cpp, log_warning_to_cpp, resolve_project_path, start_program)
 from pg_shared import create_sqlalchemy_engine
 from sqlalchemy import text
 from sqlalchemy.engine import Connection, Engine
@@ -13,6 +13,7 @@ GEN_TOOLS_INSERT_FIELDS = ["model", "codem", "manuf", "fulldescription", "lcs", 
 
 
 class Args(ArgsBase):
+    project_path: str = pydantic.Field(description="Папка проекта")
     xlsx_path: str = pydantic.Field(description="Папка исходных файлов")
     # TODO: Add options to fail on existing records
     # TODO: Add options to remove previous images
@@ -184,6 +185,9 @@ def insert_into_pic_tools(sqlalchemy_engine: Engine, row: pd.Series, tool_id: in
 
 
 def process_files(args: Args):
+    args.project_path = os.path.abspath(args.project_path)
+    args.xlsx_path = resolve_project_path(args.project_path, args.xlsx_path)
+
     log_info_to_cpp("Начало импорта на сервер")
 
     log_info_to_cpp("Подключение к базе данных")

@@ -9,7 +9,8 @@ import string
 import pandas as pd
 import pydantic
 import torch
-from base import (ArgsBase, log_info_to_cpp, log_space_to_cpp, log_trace_to_cpp, start_program)
+from base import (ArgsBase, log_info_to_cpp, log_space_to_cpp, log_trace_to_cpp, resolve_project_path, start_program,
+                  to_project_relative_path)
 # pip install -e "git+https://github.com/PramaLLC/BEN2.git#egg=ben2"
 from ben2 import BEN_Base                                                                                               # type: ignore
 from PIL import Image, ImageChops, PngImagePlugin
@@ -18,6 +19,7 @@ PngImagePlugin.MAX_TEXT_CHUNK = 10 * 1024 * 1024                                
 
 
 class Args(ArgsBase):
+    project_path: str = pydantic.Field(description="Папка проекта")
     xlsx_path: str = pydantic.Field(description="Папка исходных файлов с Excel")
     xlsx_save_path: str = pydantic.Field(description="Папка для сохранения Excel файлов")
     prev_imgs_hash_and_map_filepath: str = pydantic.Field(
@@ -71,6 +73,12 @@ def sha512_org(fname: str):
 
 
 def process_images(args: Args):
+    args.project_path = os.path.abspath(args.project_path)
+    args.xlsx_path = resolve_project_path(args.project_path, args.xlsx_path)
+    args.xlsx_save_path = resolve_project_path(args.project_path, args.xlsx_save_path)
+    args.prev_imgs_hash_and_map_filepath = resolve_project_path(args.project_path, args.prev_imgs_hash_and_map_filepath)
+    args.imgs_save_path = resolve_project_path(args.project_path, args.imgs_save_path)
+
     log_info_to_cpp("Начало обработки изображений...")
 
     prev_imgs_hash_and_map: PrevImgsHashAndMap | None = None
@@ -85,6 +93,14 @@ def process_images(args: Args):
                 prev_imgs_hash_and_map = PrevImgsHashAndMap(imgs={})
     else:
         prev_imgs_hash_and_map = PrevImgsHashAndMap(imgs={})
+
+    # Миграция старых записей с абсолютными путями: ключи и пути хранятся относительно проекта
+    prev_imgs_hash_and_map.imgs = {
+        to_project_relative_path(args.project_path, key): PrevImgsHashAndMapItem(
+            img_hash=item.img_hash,
+            img_new_path=to_project_relative_path(args.project_path, item.img_new_path))
+        for key, item in prev_imgs_hash_and_map.imgs.items()
+    }
 
     log_info_to_cpp("Удаление старых xlsx файлов и создание папок")
     shutil.rmtree(args.xlsx_save_path, ignore_errors=True)
@@ -114,7 +130,9 @@ def process_images(args: Args):
             df = pd.read_excel(filename.path, dtype=str)
             for col_name, img_set in [("img_pic", img_pic_set), ("img_drw", img_drw_set)]:
                 if col_name in df.columns:
-                    img_set.update(df[col_name].replace('', pd.NA).dropna().astype(str))
+                    img_set.update(
+                        to_project_relative_path(args.project_path, x)
+                        for x in df[col_name].replace('', pd.NA).dropna().astype(str))
 
     bg_remove_skip_list: set[str] = set()
     if args.bg_remove_skip_list_path:
@@ -133,9 +151,11 @@ def process_images(args: Args):
             log_info_to_cpp(
                 f"Обработка изображения {img_counter}/{len(img_pic_set) + len(img_drw_set)} ({img_index + 1}/{len(img_set)}): {img_path}"
             )
-            file_hash = sha512_org(img_path)
+            img_abs_path = resolve_project_path(args.project_path, img_path)
+            file_hash = sha512_org(img_abs_path)
             if img_path in prev_imgs_hash_and_map.imgs and file_hash == prev_imgs_hash_and_map.imgs[
-                    img_path].img_hash and os.path.isfile(prev_imgs_hash_and_map.imgs[img_path].img_new_path):
+                    img_path].img_hash and os.path.isfile(
+                        resolve_project_path(args.project_path, prev_imgs_hash_and_map.imgs[img_path].img_new_path)):
                 log_info_to_cpp(
                     f"Пропуск обработки изображения (уже обработано ранее): {prev_imgs_hash_and_map.imgs[img_path].img_new_path}"
                 )
@@ -143,7 +163,7 @@ def process_images(args: Args):
                 continue
 
             log_info_to_cpp(f"Открытие изображения: {img_path}")
-            image_base = Image.open(img_path)
+            image_base = Image.open(img_abs_path)
 
             if pathlib.Path(img_path).name not in bg_remove_skip_list:
                 log_info_to_cpp(f"Удаление фона для изображения: {img_path}")
@@ -167,7 +187,7 @@ def process_images(args: Args):
             save_file_path = os.path.join(args.imgs_save_path, f"{new_name}.webp")
             prev_imgs_hash_and_map.imgs[img_path] = PrevImgsHashAndMapItem(
                 img_hash=file_hash,
-                img_new_path=save_file_path,
+                img_new_path=to_project_relative_path(args.project_path, save_file_path),
             )
             img_cropped.save(save_file_path, format='WEBP')
 
@@ -195,8 +215,9 @@ def process_images(args: Args):
             df = pd.read_excel(filename.path, dtype=str)
             for col_name in ["img_pic", "img_drw"]:
                 if col_name in df.columns:
-                    df[col_name] = df[col_name].map(lambda x: prev_imgs_hash_and_map.imgs[x].img_new_path
-                                                    if pd.notna(x) else x)
+                    df[col_name] = df[col_name].map(
+                        lambda x: prev_imgs_hash_and_map.imgs[to_project_relative_path(args.project_path, x)].
+                        img_new_path if pd.notna(x) and x != "" else x)
 
             save_path = os.path.join(args.xlsx_save_path, filename.name)
 

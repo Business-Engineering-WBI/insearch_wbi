@@ -2,10 +2,12 @@ import ftplib
 import os
 
 import pydantic
-from base import (DEFAULT_CONNECTION_CONFIG_PATH, ArgsBase, import_connection_config, log_info_to_cpp, start_program)
+from base import (DEFAULT_CONNECTION_CONFIG_PATH, ArgsBase, import_connection_config, log_info_to_cpp,
+                  resolve_project_path, start_program)
 
 
 class Args(ArgsBase):
+    project_path: str = pydantic.Field(description="Папка проекта")
     project_name: str = pydantic.Field(description="Название проекта для папки на сервере")
     imgs_path: str = pydantic.Field(description="Папка исходных файлов")
     connection_config_path: str = pydantic.Field(description="Путь к файлу конфигурации подключения по ftp",
@@ -27,6 +29,9 @@ def ftp_makedirs(ftp: ftplib.FTP, remote_path: str):
 
 
 def process_files(args: Args):
+    args.project_path = os.path.abspath(args.project_path)
+    args.imgs_path = resolve_project_path(args.project_path, args.imgs_path)
+
     connection_config = import_connection_config(args.connection_config_path)
 
     ftp = ftplib.FTP()

@@ -3,12 +3,13 @@ import os
 import pandas as pd
 import pydantic
 from base import (DEFAULT_CONNECTION_CONFIG_PATH, ArgsBase, import_connection_config, log_info_to_cpp, log_space_to_cpp,
-                  start_program)
+                  resolve_project_path, start_program)
 from pg_shared import create_sqlalchemy_engine
 from sqlalchemy import text
 
 
 class Args(ArgsBase):
+    project_path: str = pydantic.Field(description="Папка проекта")
     xlsx_path: str = pydantic.Field(description="Папка исходных файлов")
     # save_path: str = pydantic.Field(description="Путь для сохранения результата")
     connection_config_path: str = pydantic.Field(description="Путь к файлу конфигурации подключения к БД",
@@ -16,6 +17,9 @@ class Args(ArgsBase):
 
 
 def process_files(args: Args):
+    args.project_path = os.path.abspath(args.project_path)
+    args.xlsx_path = resolve_project_path(args.project_path, args.xlsx_path)
+
     log_info_to_cpp("Начало импорта несуществующих ADINT моделей")
 
     log_info_to_cpp("Подключение к базе данных")

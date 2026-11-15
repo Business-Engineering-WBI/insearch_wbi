@@ -1,5 +1,6 @@
 import argparse
 import json
+import os
 import sys
 import traceback
 from typing import Callable, TypeVar, TypedDict
@@ -98,6 +99,31 @@ def start_program(program_function: Callable[[TArgs], None], args_type: type[TAr
         log_error_to_cpp(f"Ошибка во время выполнения скрипта: {e}")
         log_error_trace_to_cpp(f"{formatted_traceback}")
         sys.exit(-1)
+
+
+def resolve_project_path(project_path: str, path: str) -> str:
+    """Абсолютный путь для файлового I/O: относительный — от папки проекта; абсолютный — как есть (legacy).
+
+    project_path должен быть нормализован (os.path.abspath) вызывающей стороной.
+    """
+    path = path.replace("\\", "/")
+    if os.path.isabs(path):
+        return path
+    return os.path.join(project_path, path)
+
+
+def to_project_relative_path(project_path: str, path: str) -> str:
+    """Путь относительно проекта с разделителями '/' — для записи в xlsx/JSON.
+
+    project_path должен быть нормализован (os.path.abspath) вызывающей стороной.
+    """
+    path = path.replace("\\", "/")
+    if os.path.isabs(path):
+        try:
+            path = os.path.relpath(path, project_path)
+        except ValueError:                                                                                              # другой диск в Windows (legacy-артефакт)
+            return path
+    return path.replace("\\", "/")
 
 
 def file_format_id(index: int) -> str:

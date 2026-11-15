@@ -10,6 +10,7 @@ namespace LM
 
     constexpr std::string_view kAddExtraInfoYg1Parser = "yg1-shop";
     constexpr std::string_view kAddExtraInfoWbiToolsParser = "wbi-tools";
+    constexpr std::string_view kExtraInfoFile = "extra_info.json";
 
     struct SerializerGetPropertiesAll;
 
@@ -19,6 +20,20 @@ namespace LM
     {
         explicit ProjectVariantExcelTablesHelpers(const Project* _Owner) : m_Owner(_Owner) { }
 
+        // Пути относительно папки проекта
+        std::filesystem::path GetRelativeBasePath() const;
+        std::filesystem::path GetRelativeXlsxStartupPath() const;
+        std::filesystem::path GetRelativeXlsxAddExtraInfoPath() const;
+        std::filesystem::path GetRelativeXlsxAddExtraInfoWithProcessedImagesPath() const;
+        std::filesystem::path GetRelativeXlsxForServerImportPath(std::string_view _ParserName) const;
+        std::filesystem::path GetRelativeImgsPerPagePath() const;
+        std::filesystem::path GetRelativeImgsSimpleRulePath() const;
+        std::filesystem::path GetRelativeImgsNoConditionPath() const;
+        std::filesystem::path GetRelativeImgsProcessedPath() const;
+        std::filesystem::path GetRelativeJsonPrevProcessedImagesFilePath() const;
+        std::filesystem::path GetRelativeExtraInfoJsonPath() const;
+
+        // Полные пути (папка проекта + относительный путь)
         std::filesystem::path GetBasePath() const;
         std::filesystem::path GetXlsxStartupPath() const;
         std::filesystem::path GetXlsxAddExtraInfoPath() const;

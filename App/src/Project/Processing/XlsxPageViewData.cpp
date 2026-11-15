@@ -4,6 +4,7 @@
 #include "Engine/Utils/json.hpp"
 #include "Engine/Utils/utf8.h"
 #include "ImGui/Overlays/Overlay.h"
+#include "Project/ProjectVariantExcelTables.hpp"
 
 #include <algorithm>
 #include <fstream>
@@ -13,8 +14,6 @@
 
 namespace LM
 {
-
-    constexpr std::string_view kExtraInfoFile = "extra_info.json";
 
     // ######################################################################################################
     // ################ XlsxPageViewData ####################################################################

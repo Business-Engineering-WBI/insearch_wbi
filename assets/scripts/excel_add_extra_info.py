@@ -6,7 +6,8 @@ import numpy as np
 import pandas as pd
 import pydantic
 from validation.basic_validation import normalize_and_validate_threadsh_fields, validate_basic_lengths, validate_bsg
-from base import ArgsBase, log_info_to_cpp, log_warning_to_cpp, log_error_to_cpp, remove_model_suffix, start_program
+from base import (ArgsBase, log_info_to_cpp, log_warning_to_cpp, log_error_to_cpp, remove_model_suffix,
+                  resolve_project_path, start_program, to_project_relative_path)
 from pydantic import BaseModel
 
 # IMGS_FOLDER_SUFFIX_PRIORITY = ["_no_bg_webp_crop", "_webp_crop", "_no_bg_webp", "_no_bg", ""]
@@ -14,6 +15,7 @@ IMG_EXTENSIONS = ['.png', '.jpg', '.jpeg', '.webp', '.gif', '.bmp']
 
 
 class Args(ArgsBase):
+    project_path: str = pydantic.Field(description="Папка проекта")
     xlsx_path: str = pydantic.Field(description="Папка исходных файлов")
     save_path: str = pydantic.Field(description="Папка для сохранения")
     rules_path: str = pydantic.Field(description="Путь к файлу с правилами")
@@ -176,17 +178,15 @@ def get_per_page_simple_rule_img_list_result(index: int, df: pd.DataFrame,
 # TODO: Create per field check (like check by serie)
 
 
-def get_img_with_prefix(img_full_path: str, extra_parser_type: str):
-    if extra_parser_type is None:
-        return img_full_path.replace("\\", "/")
-
+def get_img_with_prefix(img_full_path: str, extra_parser_type: str, project_path: str):
     if extra_parser_type == "yg1-shop":
+        img_rel_path = to_project_relative_path(project_path, img_full_path)
         return os.path.join("http://194.113.153.157/nameduploads/",
-                            Path(img_full_path).parent.parent.parent.parent.name,
-                            Path(img_full_path).parent.name,
-                            Path(img_full_path).name).replace("\\", "/")
+                            os.path.basename(project_path),
+                            Path(img_rel_path).parent.name,
+                            Path(img_rel_path).name).replace("\\", "/")
 
-    return img_full_path.replace("\\", "/")
+    return to_project_relative_path(project_path, img_full_path)
 
 
 def get_col_index(df: pd.DataFrame, col: str) -> int:
@@ -289,42 +289,45 @@ def find_img_file_with_any_extension(base_path: str, base_name: str) -> str | No
     return None
 
 
-def handle_no_condition_img_list_row(row: str, no_condition_img_folder: str, extra_parser_type: str):
+def handle_no_condition_img_list_row(row: str, no_condition_img_folder: str, extra_parser_type: str, project_path: str):
     if pd.isna(row) or row is None or row == "":
         return None
 
     img_full_path = os.path.join(no_condition_img_folder, row)
     if os.path.isfile(img_full_path):
-        return get_img_with_prefix(img_full_path, extra_parser_type)
+        return get_img_with_prefix(img_full_path, extra_parser_type, project_path)
 
     log_warning_to_cpp(f"Изображение не найдено в папке без условий: '{img_full_path}'")
     return None
 
 
-def handle_no_condition_img_list(df: pd.DataFrame, no_condition_img_folder: str, extra_parser_type: str):
+def handle_no_condition_img_list(df: pd.DataFrame, no_condition_img_folder: str, extra_parser_type: str,
+                                 project_path: str):
     for col in ["img_pic", "img_drw"]:
         if col not in df.columns:
             continue
         df[col] = df[col].map(
-            lambda row: handle_no_condition_img_list_row(row, no_condition_img_folder, extra_parser_type))
+            lambda row: handle_no_condition_img_list_row(row, no_condition_img_folder, extra_parser_type, project_path))
 
 
-def handle_per_page_img_folder(df: pd.DataFrame, xlsx_path_name: str, per_page_img_folder: str, extra_parser_type: str):
+def handle_per_page_img_folder(df: pd.DataFrame, xlsx_path_name: str, per_page_img_folder: str, extra_parser_type: str,
+                               project_path: str):
     img_pic = find_img_file_with_any_extension(per_page_img_folder, f"{Path(xlsx_path_name).stem}_pic")
     img_drw = find_img_file_with_any_extension(per_page_img_folder, f"{Path(xlsx_path_name).stem}_drw")
 
-    new_img_pic = get_img_with_prefix(img_pic, extra_parser_type) if img_pic is not None else None
+    new_img_pic = get_img_with_prefix(img_pic, extra_parser_type, project_path) if img_pic is not None else None
     if new_img_pic is not None:
         df["img_pic"] = new_img_pic
 
-    new_img_drw = get_img_with_prefix(img_drw, extra_parser_type) if img_drw is not None else None
+    new_img_drw = get_img_with_prefix(img_drw, extra_parser_type, project_path) if img_drw is not None else None
     if new_img_drw is not None:
         df["img_drw"] = new_img_drw
 
 
 def handle_per_page_simple_rule_img_list(df: pd.DataFrame, page_id: int, per_page_rule_img_folder: str,
                                          extra_parser_type: str,
-                                         per_page_simple_rule_img_list: list[PerPageSimpleRuleImgListObject] | None):
+                                         per_page_simple_rule_img_list: list[PerPageSimpleRuleImgListObject] | None,
+                                         project_path: str):
     if per_page_simple_rule_img_list is None:
         return
 
@@ -337,9 +340,9 @@ def handle_per_page_simple_rule_img_list(df: pd.DataFrame, page_id: int, per_pag
                     img_pic = find_img_file_with_any_extension(per_page_rule_img_folder, f"{calc_to_add_value[i]}_pic")
                     img_drw = find_img_file_with_any_extension(per_page_rule_img_folder, f"{calc_to_add_value[i]}_drw")
                     if img_pic is not None:
-                        df.at[i, "img_pic"] = get_img_with_prefix(img_pic, extra_parser_type)
+                        df.at[i, "img_pic"] = get_img_with_prefix(img_pic, extra_parser_type, project_path)
                     if img_drw is not None:
-                        df.at[i, "img_drw"] = get_img_with_prefix(img_drw, extra_parser_type)
+                        df.at[i, "img_drw"] = get_img_with_prefix(img_drw, extra_parser_type, project_path)
 
 
 def normalize_and_validate_app_fields(df: pd.DataFrame, page_id: int):
@@ -425,7 +428,7 @@ def df_remove_model_suffix(df: pd.DataFrame):
 # NOTE: cols_names = list(df.columns)
 def add_extra_info_single(xlsx_path: Path, page_id: int, save_path: str, extra_info_rules: ExtraInfoRules,
                           per_page_img_folder: str, per_page_rule_img_folder: str, no_condition_img_folder: str,
-                          extra_parser_type: str):
+                          extra_parser_type: str, project_path: str):
     dtype_dict: dict[str, str | type] = {
         "model": str,
         "codem": str,
@@ -460,10 +463,10 @@ def add_extra_info_single(xlsx_path: Path, page_id: int, save_path: str, extra_i
     # ? TODO: Handle per_constr_calc_list
 
     df_remove_model_suffix(df)
-    handle_no_condition_img_list(df, no_condition_img_folder, extra_parser_type)
-    handle_per_page_img_folder(df, xlsx_path.name, per_page_img_folder, extra_parser_type)
+    handle_no_condition_img_list(df, no_condition_img_folder, extra_parser_type, project_path)
+    handle_per_page_img_folder(df, xlsx_path.name, per_page_img_folder, extra_parser_type, project_path)
     handle_per_page_simple_rule_img_list(df, page_id, per_page_rule_img_folder, extra_parser_type,
-                                         extra_info_rules.per_page_simple_rule_img_list)
+                                         extra_info_rules.per_page_simple_rule_img_list, project_path)
 
     run_post_transform_checks(df, page_id)
 
@@ -481,6 +484,14 @@ def add_extra_info_single(xlsx_path: Path, page_id: int, save_path: str, extra_i
 
 
 def add_extra_info(args: Args):
+    args.project_path = os.path.abspath(args.project_path)
+    args.xlsx_path = resolve_project_path(args.project_path, args.xlsx_path)
+    args.save_path = resolve_project_path(args.project_path, args.save_path)
+    args.rules_path = resolve_project_path(args.project_path, args.rules_path)
+    args.per_page_img_folder = resolve_project_path(args.project_path, args.per_page_img_folder)
+    args.per_page_rule_img_folder = resolve_project_path(args.project_path, args.per_page_rule_img_folder)
+    args.no_condition_img_folder = resolve_project_path(args.project_path, args.no_condition_img_folder)
+
     extra_info_rules: ExtraInfoRules | None = None
     log_info_to_cpp(f"Открытие файла с правилами: '{args.rules_path}'")
     with open(args.rules_path, encoding="utf-8") as conf_file:
@@ -495,6 +506,9 @@ def add_extra_info(args: Args):
         return
 
     os.makedirs(args.save_path, exist_ok=True)
+    os.makedirs(args.per_page_img_folder, exist_ok=True)
+    os.makedirs(args.per_page_rule_img_folder, exist_ok=True)
+    os.makedirs(args.no_condition_img_folder, exist_ok=True)
 
     xlsx_path = Path(args.xlsx_path)
     filenames = sorted(filter(lambda f: f.is_file() and not f.name.startswith("~$"), list(xlsx_path.rglob("*.xlsx"))))
@@ -502,7 +516,8 @@ def add_extra_info(args: Args):
     for i, filename in enumerate(filenames):
         log_info_to_cpp(f"Обработка файла: {filename.name}")
         add_extra_info_single(filename, i, args.save_path, extra_info_rules, args.per_page_img_folder,
-                              args.per_page_rule_img_folder, args.no_condition_img_folder, args.extra_parser_type)
+                              args.per_page_rule_img_folder, args.no_condition_img_folder, args.extra_parser_type,
+                              args.project_path)
         log_info_to_cpp("Файл обработан успешно!")
 
     log_info_to_cpp("Все файлы обработаны успешно!")

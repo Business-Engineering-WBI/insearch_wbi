@@ -7,10 +7,11 @@ import pandas as pd
 import paramiko
 import pydantic
 from base import (DEFAULT_CONNECTION_CONFIG_PATH, ArgsBase, import_connection_config, log_info_to_cpp,
-                  log_warning_to_cpp, start_program)
+                  log_warning_to_cpp, resolve_project_path, start_program)
 
 
 class Args(ArgsBase):
+    project_path: str = pydantic.Field(description="Папка проекта")
     xlsx_path: str = pydantic.Field(description="Папка исходных файлов")
     xlsx_save_path: str = pydantic.Field(description="Папка для сохранения")
     # img_tmp_path: str = pydantic.Field(description="Папка для сохранения; Можно использовать ';' для нескольких папок")
@@ -192,6 +193,10 @@ def sha256_org_not_exists(
 
 
 def process_files(args: Args):
+    args.project_path = os.path.abspath(args.project_path)
+    args.xlsx_path = resolve_project_path(args.project_path, args.xlsx_path)
+    args.xlsx_save_path = resolve_project_path(args.project_path, args.xlsx_save_path)
+
     os.makedirs(args.xlsx_save_path, exist_ok=True)
 
     connection_config = import_connection_config(args.connection_config_path)
@@ -226,16 +231,17 @@ def process_files(args: Args):
             local_path, remote_path, sftp_client)) if not is_local else local_files_content_equal
 
         for img_name in imgs_set:
-            if not os.path.isfile(img_name):
-                raise RuntimeError(f"Файл изображения не найден: {img_name}")
-            server_pathname = sha256_org_not_exists(img_name, connection_config.server_imgs_path, is_file_exists_cb,
+            img_abs_path = resolve_project_path(args.project_path, img_name)
+            if not os.path.isfile(img_abs_path):
+                raise RuntimeError(f"Файл изображения не найден: {img_abs_path}")
+            server_pathname = sha256_org_not_exists(img_abs_path, connection_config.server_imgs_path, is_file_exists_cb,
                                                     is_files_equal_cb)
             imgs_replace_map[img_name] = server_pathname
             if is_local:
-                local_copy_file(img_name,
+                local_copy_file(img_abs_path,
                                 os.path.join(connection_config.server_imgs_path, server_pathname).replace("\\", "/"))
             else:
-                sftp_upload_file(img_name,
+                sftp_upload_file(img_abs_path,
                                  os.path.join(connection_config.server_imgs_path, server_pathname).replace("\\", "/"),
                                  sftp_client)
 

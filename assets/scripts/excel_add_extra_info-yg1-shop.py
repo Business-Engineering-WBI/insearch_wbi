@@ -5,7 +5,9 @@ from functools import partial
 import sys
 
 import pandas as pd
-from base import DEFAULT_YG1_SHOP_CONSTRUCTION_LEVEL_CONFIG_PATH, ArgsBase, Yg1ShopConstructionLevelConfigItemDict, import_yg1_shop_construction_level_config, log_error_to_cpp, log_info_to_cpp, remove_model_suffix, start_program
+from base import (DEFAULT_YG1_SHOP_CONSTRUCTION_LEVEL_CONFIG_PATH, ArgsBase, Yg1ShopConstructionLevelConfigItemDict,
+                  import_yg1_shop_construction_level_config, log_error_to_cpp, log_info_to_cpp, remove_model_suffix,
+                  resolve_project_path, start_program, to_project_relative_path)
 import pydantic
 
 SECTION_1_FIELD = "Название раздела {ISECT1_NAME}"
@@ -29,19 +31,22 @@ FIELDS_MAP = {
 
 
 class Args(ArgsBase):
+    project_path: str = pydantic.Field(description="Папка проекта")
     xlsx_path: str = pydantic.Field(description="Папка исходных файлов")
     save_path: str = pydantic.Field(description="Папка для сохранения")
     img_prefix: str = pydantic.Field(description="Префикс для добавления к картинкам", default="")
 
 
-def get_img_with_prefix(img_prefix: str, img_full_path: str):
+def get_img_with_prefix(img_prefix: str, img_full_path: str, project_path: str):
+    img_rel_path = to_project_relative_path(project_path, img_full_path)
     return os.path.join(img_prefix,
-                        Path(img_full_path).parent.parent.parent.parent.name,
-                        Path(img_full_path).parent.name,
-                        Path(img_full_path).name).replace("\\", "/")
+                        os.path.basename(project_path),
+                        Path(img_rel_path).parent.name,
+                        Path(img_rel_path).name).replace("\\", "/")
 
 
-def process_row(img_prefix: str, constr_to_lvl: dict[str, Yg1ShopConstructionLevelConfigItemDict], row):
+def process_row(img_prefix: str, constr_to_lvl: dict[str, Yg1ShopConstructionLevelConfigItemDict], project_path: str,
+                row):
     drw = str(row["img_drw"]).strip()
     pic = str(row["img_pic"]).strip()
 
@@ -59,13 +64,13 @@ def process_row(img_prefix: str, constr_to_lvl: dict[str, Yg1ShopConstructionLev
     is_drw_not_empty = drw and drw.lower() != "nan" and drw.strip() != ""
     if is_drw_not_empty:
         img_list = [p.strip() for p in drw.split(";") if p.strip()]
-        row["img_drw"] = ";".join([get_img_with_prefix(img_prefix, x) for x in img_list])
+        row["img_drw"] = ";".join([get_img_with_prefix(img_prefix, x, project_path) for x in img_list])
 
     pic = str(row["img_pic"]).strip()
     is_pic_not_empty = pic and pic.lower() != "nan" and pic.strip() != ""
     if is_pic_not_empty:
         img_list = [p.strip() for p in pic.split(";") if p.strip()]
-        row["img_pic"] = ";".join([get_img_with_prefix(img_prefix, x) for x in img_list])
+        row["img_pic"] = ";".join([get_img_with_prefix(img_prefix, x, project_path) for x in img_list])
 
     row[FIELDS_MAP["model"]] = remove_model_suffix(row[FIELDS_MAP["model"]])
 
@@ -106,11 +111,15 @@ def process_row(img_prefix: str, constr_to_lvl: dict[str, Yg1ShopConstructionLev
 
 
 def add_extra_info(args: Args):
+    args.project_path = os.path.abspath(args.project_path)
+    args.xlsx_path = resolve_project_path(args.project_path, args.xlsx_path)
+    args.save_path = resolve_project_path(args.project_path, args.save_path)
+
     os.makedirs(args.save_path, exist_ok=True)
 
     constr_to_lvl = import_yg1_shop_construction_level_config(DEFAULT_YG1_SHOP_CONSTRUCTION_LEVEL_CONFIG_PATH)
 
-    bound_process_row = partial(process_row, args.img_prefix, constr_to_lvl)
+    bound_process_row = partial(process_row, args.img_prefix, constr_to_lvl, args.project_path)
 
     all_dfs = []
     for filename in os.scandir(args.xlsx_path):

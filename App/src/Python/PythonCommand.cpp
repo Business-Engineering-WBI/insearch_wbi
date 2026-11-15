@@ -55,7 +55,7 @@ namespace LM
 #ifdef _WIN32
         return ".\\.venv\\scripts\\python";
 #else
-        return ".venv/scripts/python";
+        return ".venv/bin/python";
 #endif
     }
 

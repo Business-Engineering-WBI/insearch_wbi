@@ -3090,14 +3090,17 @@ namespace LM
         }
 
         PythonCommand pythonCommand("./assets/scripts/excel_add_extra_info.py");
-        pythonCommand.AddPathArg(m_Project->GetVariantExcelTablesHelpers().GetXlsxStartupPath(), "--xlsx_path");
-        pythonCommand.AddPathArg(m_Project->GetVariantExcelTablesHelpers().GetXlsxAddExtraInfoPath(), "--save_path");
-        pythonCommand.AddPathArg(m_Project->GetXlsxPageViewData().GetExtraInfoJsonPath(), "--rules_path");
-        pythonCommand.AddPathArg(m_Project->GetVariantExcelTablesHelpers().GetImgsPerPagePath(),
+        pythonCommand.AddPathArg(m_Project->GetFolder(), "--project_path");
+        pythonCommand.AddPathArg(m_Project->GetVariantExcelTablesHelpers().GetRelativeXlsxStartupPath(), "--xlsx_path");
+        pythonCommand.AddPathArg(m_Project->GetVariantExcelTablesHelpers().GetRelativeXlsxAddExtraInfoPath(),
+                                 "--save_path");
+        pythonCommand.AddPathArg(m_Project->GetVariantExcelTablesHelpers().GetRelativeExtraInfoJsonPath(),
+                                 "--rules_path");
+        pythonCommand.AddPathArg(m_Project->GetVariantExcelTablesHelpers().GetRelativeImgsPerPagePath(),
                                  "--per_page_img_folder");
-        pythonCommand.AddPathArg(m_Project->GetVariantExcelTablesHelpers().GetImgsSimpleRulePath(),
+        pythonCommand.AddPathArg(m_Project->GetVariantExcelTablesHelpers().GetRelativeImgsSimpleRulePath(),
                                  "--per_page_rule_img_folder");
-        pythonCommand.AddPathArg(m_Project->GetVariantExcelTablesHelpers().GetImgsNoConditionPath(),
+        pythonCommand.AddPathArg(m_Project->GetVariantExcelTablesHelpers().GetRelativeImgsNoConditionPath(),
                                  "--no_condition_img_folder");
 
         ScriptPopup::Get()->AddToQueue(
@@ -3120,12 +3123,16 @@ namespace LM
         ProcessAddExtraInfo(false);
 
         PythonCommand pythonCommand("./assets/scripts/imgs_process.py");
-        pythonCommand.AddPathArg(m_Project->GetVariantExcelTablesHelpers().GetXlsxAddExtraInfoPath(), "--xlsx_path");
-        pythonCommand.AddPathArg(m_Project->GetVariantExcelTablesHelpers().GetXlsxAddExtraInfoWithProcessedImagesPath(),
-                                 "--xlsx_save_path");
-        pythonCommand.AddPathArg(m_Project->GetVariantExcelTablesHelpers().GetJsonPrevProcessedImagesFilePath(),
+        pythonCommand.AddPathArg(m_Project->GetFolder(), "--project_path");
+        pythonCommand.AddPathArg(m_Project->GetVariantExcelTablesHelpers().GetRelativeXlsxAddExtraInfoPath(),
+                                 "--xlsx_path");
+        pythonCommand.AddPathArg(
+            m_Project->GetVariantExcelTablesHelpers().GetRelativeXlsxAddExtraInfoWithProcessedImagesPath(),
+            "--xlsx_save_path");
+        pythonCommand.AddPathArg(m_Project->GetVariantExcelTablesHelpers().GetRelativeJsonPrevProcessedImagesFilePath(),
                                  "--prev_imgs_hash_and_map_filepath");
-        pythonCommand.AddPathArg(m_Project->GetVariantExcelTablesHelpers().GetImgsProcessedPath(), "--imgs_save_path");
+        pythonCommand.AddPathArg(m_Project->GetVariantExcelTablesHelpers().GetRelativeImgsProcessedPath(),
+                                 "--imgs_save_path");
         std::string bgSkipListPath = m_TMP_SkippedBgRemoveImgNames;
         StrReplaceAll(bgSkipListPath, "\n", ";");
         pythonCommand.AddArg(bgSkipListPath, "--bg_remove_skip_list_path");
@@ -3153,10 +3160,12 @@ namespace LM
 
         // TODO: add variant for use add extra info xlsx without processed images
         PythonCommand pythonCommand("./assets/scripts/imgs_to_server_format_and_upload_wbi_tools.py");
-        pythonCommand.AddPathArg(m_Project->GetVariantExcelTablesHelpers().GetXlsxAddExtraInfoWithProcessedImagesPath(),
-                                 "--xlsx_path");
+        pythonCommand.AddPathArg(m_Project->GetFolder(), "--project_path");
         pythonCommand.AddPathArg(
-            m_Project->GetVariantExcelTablesHelpers().GetXlsxForServerImportPath(kAddExtraInfoWbiToolsParser),
+            m_Project->GetVariantExcelTablesHelpers().GetRelativeXlsxAddExtraInfoWithProcessedImagesPath(),
+            "--xlsx_path");
+        pythonCommand.AddPathArg(
+            m_Project->GetVariantExcelTablesHelpers().GetRelativeXlsxForServerImportPath(kAddExtraInfoWbiToolsParser),
             "--xlsx_save_path");
 
         ScriptPopup::Get()->AddToQueue(
@@ -3182,8 +3191,10 @@ namespace LM
         UploadImagesAndPrepareXlsxForWbiTools(false);
 
         PythonCommand pythonCommand("./assets/scripts/view_not_exist_adint.py");
-        pythonCommand.AddPathArg(m_Project->GetVariantExcelTablesHelpers().GetXlsxAddExtraInfoWithProcessedImagesPath(),
-                                 "--xlsx_path");
+        pythonCommand.AddPathArg(m_Project->GetFolder(), "--project_path");
+        pythonCommand.AddPathArg(
+            m_Project->GetVariantExcelTablesHelpers().GetRelativeXlsxAddExtraInfoWithProcessedImagesPath(),
+            "--xlsx_path");
 
         ScriptPopup::Get()->AddToQueue(pythonCommand,
                                        { "Просмотр полей ADINT, отсутствующих в БД",
@@ -3205,8 +3216,10 @@ namespace LM
         UploadImagesAndPrepareXlsxForWbiTools(false);
 
         PythonCommand pythonCommand("./assets/scripts/import_not_exist_adint.py");
-        pythonCommand.AddPathArg(m_Project->GetVariantExcelTablesHelpers().GetXlsxAddExtraInfoWithProcessedImagesPath(),
-                                 "--xlsx_path");
+        pythonCommand.AddPathArg(m_Project->GetFolder(), "--project_path");
+        pythonCommand.AddPathArg(
+            m_Project->GetVariantExcelTablesHelpers().GetRelativeXlsxAddExtraInfoWithProcessedImagesPath(),
+            "--xlsx_path");
 
         ScriptPopup::Get()->AddToQueue(
             pythonCommand, { "Добавление полей ADINT, отсутствующих в БД, на сервер",
@@ -3229,8 +3242,9 @@ namespace LM
         UploadImagesAndPrepareXlsxForWbiTools(false);
 
         PythonCommand pythonCommand("./assets/scripts/import_to_server.py");
+        pythonCommand.AddPathArg(m_Project->GetFolder(), "--project_path");
         pythonCommand.AddPathArg(
-            m_Project->GetVariantExcelTablesHelpers().GetXlsxForServerImportPath(kAddExtraInfoWbiToolsParser),
+            m_Project->GetVariantExcelTablesHelpers().GetRelativeXlsxForServerImportPath(kAddExtraInfoWbiToolsParser),
             "--xlsx_path");
         pythonCommand.AddArg(false, "--remove_previous_images");
         pythonCommand.AddArg(StrJoin(m_Project->GetVariantExcelTables().GetPageNamesToSkipOnServerImport(), ";"),
@@ -3259,8 +3273,10 @@ namespace LM
         ProcessImages(false);
 
         PythonCommand pythonCommand("./assets/scripts/imgs_to_server_upload_yg1-shop.py");
+        pythonCommand.AddPathArg(m_Project->GetFolder(), "--project_path");
         pythonCommand.AddArg(m_Project->GetName(), "--project_name");
-        pythonCommand.AddPathArg(m_Project->GetVariantExcelTablesHelpers().GetImgsProcessedPath(), "--imgs_path");
+        pythonCommand.AddPathArg(m_Project->GetVariantExcelTablesHelpers().GetRelativeImgsProcessedPath(),
+                                 "--imgs_path");
 
         ScriptPopup::Get()->AddToQueue(
             pythonCommand,
@@ -3284,10 +3300,12 @@ namespace LM
         ProcessImages(false);
 
         PythonCommand pythonCommand("./assets/scripts/excel_add_extra_info-yg1-shop.py");
-        pythonCommand.AddPathArg(m_Project->GetVariantExcelTablesHelpers().GetXlsxAddExtraInfoWithProcessedImagesPath(),
-                                 "--xlsx_path");
+        pythonCommand.AddPathArg(m_Project->GetFolder(), "--project_path");
         pythonCommand.AddPathArg(
-            m_Project->GetVariantExcelTablesHelpers().GetXlsxForServerImportPath(kAddExtraInfoYg1Parser),
+            m_Project->GetVariantExcelTablesHelpers().GetRelativeXlsxAddExtraInfoWithProcessedImagesPath(),
+            "--xlsx_path");
+        pythonCommand.AddPathArg(
+            m_Project->GetVariantExcelTablesHelpers().GetRelativeXlsxForServerImportPath(kAddExtraInfoYg1Parser),
             "--save_path");
         pythonCommand.AddPathArg("https://yg1-shop.ru/nameduploads/", "--img_prefix");
 
